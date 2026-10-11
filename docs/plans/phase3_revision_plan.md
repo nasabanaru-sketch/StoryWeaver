@@ -1,216 +1,174 @@
 # StoryWeaver Live Phase 3 実装検証計画書
-## （Animagine XL v3.1 ＋ InstantID ＋ WD14 Tagger 完全自動化・段階的実証仕様）
+## （本人同一性 ➔ ストーリー動的演出 ➔ 生成時間短縮：3大フェーズ検証仕様）
 
-**文書バージョン**: 3.1.0  
-**作成日**: 2026年10月11日  
-**基本方針**: **「時間よりも画質・完全自動化パイプラインの成立を最優先」**  
+**文書バージョン**: 4.0.0  
+**改訂日**: 2026年10月11日  
+**基本思想**: **「顔特徴の再現 ➔ ストーリー連動の動的演出 ➔ 生成速度の最適化」を順次確立し、手戻りゼロで顧客提供価値を最大化する**  
 **対象環境**: ThinkPad X1 Extreme (GPU: RTX 3080 Laptop 16GB / RAM: 32GB / Windows 11)  
 **運用制約**: 展示ブース完全ローカル稼働 / ゼロダウンタイム / VRAM 14.5GB 以内 / レイテンシ ≤ 20秒
 
 ---
 
-## 1. 改訂の背景・目的と全体スコープ
+## 1. 全体ロードマップと Phase 体系
 
-### 1.1 改訂の目的：手動プロンプトから「完全自動化」への確実な昇格
-前版（v3.0.0）では、外見属性（髪型・眼鏡等）を手動プロンプトで記述する構成となっていました。しかし、展示インスタレーションの本来の要件は**「来場者の顔写真（Webカメラ1枚）から完全自動で特徴を抽出し、アニメイラストを生成すること」**です。  
-手動プロンプト前提のまま API ワークフロー化（Phase 3-5）に進むと、Phase 4（FastAPI連携）で必ず破綻・手戻りが発生するため、**`WD14 Tagger` およびテキスト結合ノードを組み込んだ自動抽出パイプラインの検証ステップを正式なフェーズとして配置**します。
-
-### 1.2 Phase 3 と Phase 4 の境界（スコープ定義）
-* **Phase 3（画像生成コアの完結）**:  
-  ComfyUI 単体において、「顔写真（IMAGE）＋ 情景指示テキスト（STRING）」を入力すれば、WD14 Tagger による外見自動抽出、InstantID による顔転生、Animagine XL による高画質描画が**手動介入なしで一気通貫に完結するワークフローを確立**し、最終成果物である **`storyweaver_anime_api.json`** を出力・検証する。
-* **Phase 4（オーケストレーター統合）**:  
-  FastAPI が SenseVoice (ASR) $\rightarrow$ Ollama (LLM) $\rightarrow$ ComfyUI API（Phase 3 で出力した JSON）を順次呼び出し、システム全体を結合する。
-
----
-
-## 2. 検証の5段階ロードマップ（手戻り防止フロー）
-
-パラメータの影響を正確に切り分け、手戻りを防ぐため、以下の **5段階アプローチ** で推進します。
+本計画は、展示インスタレーションとしての顧客体験価値（「あ、自分だ！」「かっこいい！」「早い！」）を段階的かつ確実に達成するため、以下の **3大フェーズ構成** で推進します。
 
 ```mermaid
 flowchart TD
-    subgraph P31["Phase 3-1: 【第1段階】ベースライン確立 (基本画質 & 本人一致)"]
-        A1["手動タグ + ApplyInstantIDAdvanced"] --> G31{"🚧 Gate 3-1<br>画質・本人一致・solo遵守"}
+    subgraph P3A["Phase 3-A: 【第1期】顔特徴・本人同一性とアニメ品質の確立"]
+        A1["ポートレート構図固定"] --> A2["WD14 Tagger (外見属性自動抽出)"]
+        A2 --> A3["ApplyInstantIDAdvanced (顔貌固定)"]
+        A3 --> A4["FaceDetailer (別人化防止・高精細化)"]
+        A4 --> GA{"🚧 Gate 3-A<br>・本人同一性（目鼻立ち/髪型/眼鏡）<br>・美麗アニメ/漫画画質<br>・solo遵守"}
     end
 
-    subgraph P32["Phase 3-2: 【第2段階】動的構図・表情の適用 (ポーズ自由度)"]
-        B1["抜刀・跳躍・振り返り指示注入"] --> B2["cn_strength: 0.15 ポーズ追従検証"]
-        B2 --> G32{"🚧 Gate 3-2<br>正面固定解除 vs 本人感維持"}
+    subgraph P3B["Phase 3-B: 【第2期】ストーリー連動の動的ポージング・表情と顧客提供品質"]
+        B1["骨格拘束緩和 (cn_strength 調整)"] --> B2["ストーリープロンプト注入 (抜刀/跳躍/構図)"]
+        B2 --> B3["表情変化の追従 (叫び/微笑み)"]
+        B3 --> B4["全身・引き構図での小顔潰れ防止"]
+        B4 --> GB{"🚧 Gate 3-B<br>・ポーズ/表情への完全追従（首折れなし）<br>・動的変換後も本人同一性を維持<br>・提供物として感動を与える絵の完成度"}
     end
 
-    subgraph P33["Phase 3-3: 【第3段階】外見属性の完全自動化実証 (WD14 Tagger)"]
-        C1["WD14 Tagger + Concatenate Text 統合"] --> C2["写真から髪型・眼鏡の自動抽出結合"]
-        C2 --> G33{"🚧 Gate 3-3<br>手動介入ゼロで特徴再現"}
+    subgraph P3C["Phase 3-C: 【第3期】生成時間の短縮・展示運用最適化 & API確定"]
+        C1["高速化手法比較 (Lightning LoRA / steps削減)"] --> C2["画質維持とレイテンシの最適点決定"]
+        C2 --> C3["VRAM ≤ 14.5GB & ゼロダウンタイム検証"]
+        C3 --> GC{"🚧 Gate 3-C (最終関門)<br>・生成時間 ≤ 20秒 (目標 ≤ 15秒)<br>・OOM ゼロ<br>・完全自動 storyweaver_anime_api.json 出力"}
     end
 
-    subgraph P34["Phase 3-4: 【第4段階】引き構図・小顔対策 (FaceDetailer要否)"]
-        D1["全身構図生成テスト"] --> D2["条件付き FaceDetailer 比較 (遅延+2秒)"]
-        D2 --> G34{"🚧 Gate 3-4<br>引き顔解像度・別人化なし"}
-    end
-
-    subgraph P35["Phase 3-5: 【第5段階】高速化・安定化 & 完全自動化 API 出力"]
-        E1["Lightning LoRA 比較 (速度 vs 画質)"] --> E2["VRAM ≤ 14.5GB & レイテンシ ≤ 20秒"]
-        E2 --> G35{"🚧 Gate 3-5 (最終関門)<br>完全自動 storyweaver_anime_api.json"}
-    end
-
-    G31 -- "合格" --> P32
-    G32 -- "合格" --> P33
-    G33 -- "合格" --> P34
-    G34 -- "合格" --> P35
-    G35 -- "合格" --> COMP["Phase 4: FastAPI オーケストレーター構築へ"]
+    GA -- "合格 (本人性と画質の確立)" --> P3B
+    GB -- "合格 (動的演出と提供品質の確立)" --> P3C
+    GC -- "合格 (運用速度とAPIの確立)" --> PHASE4["Phase 4: FastAPI オーケストレーター統合へ"]
 
     classDef gate fill:#d97706,stroke:#fcd34d,color:#fff;
-    classDef comp fill:#16a34a,stroke:#22c55e,color:#fff;
+    classDef phase4 fill:#16a34a,stroke:#22c55e,color:#fff;
 ```
 
 ---
 
-## 3. モデルおよびノード構成（完全自動化対応）
-
-### 3.1 必要なモデル一覧（ユーザー環境確認済み）
-すべて `C:\pinokio\api\comfy.git\app\models` 配下に実在確認済み。
-
-| 種別 | 配置先フォルダ | 選択するファイル名 | 役割 |
-| :--- | :--- | :--- | :--- |
-| **Checkpoint** | `models/checkpoints/` | **`animagine-xl-3.1.float8_e4m3fn.safetensors`** | 本体モデル（FP8 アニメ画質） |
-| **InstantID** | `models/instantid/` | **`ip-adapter.bin`** | InstantID 顔特徴量アダプタ |
-| **ControlNet** | `models/controlnet/` | **`diffusion_pytorch_model.safetensors`** | InstantID 専用 ControlNet |
-| **InsightFace** | `models/insightface/models/antelopev2/` | **`antelopev2` 一式（全5ファイル）** | 顔認識・パーツ抽出エンジン |
-| **YOLO Bbox** | `models/ultralytics/bbox/` | **`face_yolov8m.pt`** | 顔検出モデル（Phase 3-4 用） |
-| **LoRA** | `models/loras/` | **`sdxl_lightning_8step_lora.safetensors`** | 高速化用 LoRA（Phase 3-5 用） |
+## 2. 各フェーズの詳細設計・タスク・判定基準 (Gate)
 
 ---
 
-### 3.2 必要な全ノード一覧（完全自動化ワークフロー：全14ノード）
+### Phase 3-A: 【第1期】顔特徴・本人同一性とアニメ品質の確立
 
-| # | ノード名（検索名） | 役割 |
-| :-: | :--- | :--- |
-| **1** | `CheckpointLoaderSimple` | Animagine XL v3.1 FP8 本体モデルの読み込み |
-| **2** | `InstantIDModelLoader` | InstantID モデル (`ip-adapter.bin`) の読み込み |
-| **3** | `ControlNetLoader` | 専用 ControlNet (`diffusion_pytorch_model.safetensors`) の読み込み |
-| **4** | `InstantIDFaceAnalysis` | InsightFace による顔特徴抽出器 (CPU 実行) |
-| **5** | `Load Image` | 来場者の顔写真（Webカメラ入力） |
-| **6** | `WD14Tagger\|pysssss` (`WD14 Tagger`) | **【自動化】顔写真から外見属性（髪型・眼鏡等）を自動抽出** |
-| **7** | `StringConcatenate` (`Concatenate Text`) | **【自動化】情景プロンプトと WD14 タグをカンマ結合** |
-| **8** | `CLIPTextEncode` (Positive) | 情景＋自動外見タグを条件付け（text 端子を入力化） |
-| **9** | `CLIPTextEncode` (Negative) | 実写・低品質タグの除外条件付け |
-| **10** | `ApplyInstantIDAdvanced` | **顔特徴（`ip_weight`）と骨格拘束（`cn_strength`）の分離制御** |
-| **11** | `EmptyLatentImage` | 生成解像度 (1024 x 1024) |
-| **12** | `KSampler` | 美麗アニメレンダリング (30 steps, CFG 6.5) |
-| **13** | `VAEDecode` | 潜在変数からイラスト画像への現像 |
-| **14** | `Save Image` | 完成したイラストの保存・プレビュー |
+#### 1. 目的
+動的ポーズや全身構図などの不確定要素を完全に排除し、**「元写真の本人らしさ（目元・鼻・口の形状、髪型、眼鏡などの記号）」が確実に残り、かつ美麗なセル画調アニメ・漫画絵として成立するベースライン** を確立する。
 
----
+#### 2. やること（検証タスク）
+1. **構図の固定**:
+   * プロンプトをポートレート（上半身・バストアップ、正面〜自然な向き）に固定し、顔の描画解像度を画面全体の50%以上に確保する。
+2. **外見属性の自動抽出（WD14 Tagger 連携）**:
+   * 写真から「髪型（短髪・黒髪等）」や「眼鏡（glasses）」などの外見属性を漏れなく抽出し、プロンプトへ自動結合する。
+3. **InstantID 顔特徴強度の確立**:
+   * `ApplyInstantIDAdvanced` の `ip_weight` を最適化し、Animagine XL の強力な美形アニメバイアスに負けずに本人の顔貌を確実に転写する。
+4. **FaceDetailer による高精細化と「別人化防止」**:
+   * FaceDetailer の `denoise` を「Base の顔立ちを壊さず、瞳のハイライトや眼鏡フレームだけを鮮明にする」安全領域に設定する。
 
-### 3.3 🔌 端子接続の完全一覧表（完全自動化対応：全19本）
+#### 3. ワークフロー推奨構成
+* **プロンプト**: `masterpiece, best quality, anime art style, solo, portrait, close-up face, upper body, looking at viewer, detailed facial features, simple background` ＋ WD14 自動タグ
+* **ApplyInstantIDAdvanced (Base)**: `ip_weight: 0.70〜0.75`, `cn_strength: 0.25`, `end_at: 1.0`
+* **FaceDetailer**: `denoise: 0.25〜0.30`, `bbox_crop_factor: 1.4`, `feather: 10`
+* **FaceDetailer 側 InstantID**: `cn_strength: 0.0` (骨格不整合による歪みを排除), `ip_weight: 0.45`
 
-※ `CLIPTextEncode` (Positive) は、ノード上で右クリック $\rightarrow$ **「Convert text to input」** を実行して左側に `text` 端子を露出させます。
+#### 4. 🚧 Gate 3-A 判定基準（合格条件）
+| # | チェック項目 | 合格基準 | 確認方法 | 合否 |
+| :-: | :--- | :--- | :--- | :---: |
+| A-1 | **本人同一性の成立** | 写真を見た人が「本人だ」と即座に認識できる（目元の特徴、髪型、眼鏡が一致） | 写真と比較確認 | ☐ |
+| A-2 | **美麗アニメ品質** | 実写の生々しさや崩れがなく、瞳にハイライトが入った美しいセル画アニメ調であること | 目視確認 | ☐ |
+| A-3 | **`solo` 遵守** | 人物が1人だけであり、多人数化・コラージュ・分裂が一切発生しないこと | 目視確認 | ☐ |
+| A-4 | **別人化の非発生** | FaceDetailer 適用前後で顔立ちが別人に置き換わっていないこと | Preview vs Save 比較 | ☐ |
 
-| # | 出発元ノード | 出発端子（右側） | 色 | つなぐ先ノード | 受け取り端子（左側） |
-| :-: | :--- | :--- | :-: | :--- | :--- |
-| **1** | 5. Load Image | `IMAGE` | 🔵 青 | 6. WD14 Tagger | `image` |
-| **2** | 6. WD14 Tagger | `STRING` | ⚪ 白 | 7. Concatenate Text | `string_b` |
-| **3** | 7. Concatenate Text | `STRING` | ⚪ 白 | 8. CLIPTextEncode (Pos) | `text` *(※右クリックで入力化)* |
-| **4** | 1. CheckpointLoaderSimple | `CLIP` | 🟡 黄 | 8. CLIPTextEncode (Pos) | `clip` |
-| **5** | 1. CheckpointLoaderSimple | `CLIP` | 🟡 黄 | 9. CLIPTextEncode (Neg) | `clip` |
-| **6** | 1. CheckpointLoaderSimple | `MODEL` | 🟣 紫 | 10. ApplyInstantIDAdvanced | `model` |
-| **7** | 2. InstantIDModelLoader | `INSTANTID` | 🟢 緑 | 10. ApplyInstantIDAdvanced | `instantid` |
-| **8** | 3. ControlNetLoader | `CONTROL_NET` | 🟣 紫 | 10. ApplyInstantIDAdvanced | `control_net` |
-| **9** | 4. InstantIDFaceAnalysis | `FACEANALYSIS` | 🔵 青 | 10. ApplyInstantIDAdvanced | `insightface` |
-| **10** | 5. Load Image | `IMAGE` | 🔵 青 | 10. ApplyInstantIDAdvanced | `image` |
-| **11** | 8. CLIPTextEncode (Pos) | `CONDITIONING` | 🟠 橙 | 10. ApplyInstantIDAdvanced | `positive` |
-| **12** | 9. CLIPTextEncode (Neg) | `CONDITIONING` | 🟠 橙 | 10. ApplyInstantIDAdvanced | `negative` |
-| **13** | 10. ApplyInstantIDAdvanced | `MODEL` | 🟣 紫 | 12. KSampler | `model` |
-| **14** | 10. ApplyInstantIDAdvanced | `positive` | 🟠 橙 | 12. KSampler | `positive` |
-| **15** | 10. ApplyInstantIDAdvanced | `negative` | 🟠 橙 | 12. KSampler | `negative` |
-| **16** | 11. EmptyLatentImage | `LATENT` | 🌸 ピンク | 12. KSampler | `latent_image` |
-| **17** | 12. KSampler | `LATENT` | 🌸 ピンク | 13. VAEDecode | `samples` |
-| **18** | 1. CheckpointLoaderSimple | `VAE` | 🔴 赤 | 13. VAEDecode | `vae` |
-| **19** | 13. VAEDecode | `IMAGE` | 🔵 青 | 14. Save Image | `images` |
+* **⚠️ 不合格時の対処手順**:
+  * 似ていない $\rightarrow$ `ip_weight: 0.75` へ引き上げ、WD14 の `threshold` を `0.30` に下げて眼鏡・髪型タグを補強。
+  * アニメ絵が硬い・実写臭い $\rightarrow$ `ip_weight: 0.65` へ微減、CFG を `7.0` に調整。
+  * FaceDetailer で別人になる $\rightarrow$ `denoise` を `0.25` 以下へ引き下げ。
 
 ---
 
-## 4. 各検証フェーズの手順・判定基準・調整方針
+### Phase 3-B: 【第2期】ストーリー連動の動的ポージング・表情と顧客提供品質
 
-### Phase 3-1: 【第1段階：ベースライン確立（基本画質 & 本人一致）】
-* **目的**: 動的ポーズを入れず、手動外見タグ ＋ `ApplyInstantIDAdvanced`（`ip_weight: 0.60`, `cn_strength: 0.15`）により、モデル本来の描画力と顔特徴の反映バランスを確立する。
-* **🚧 Gate 3-1 判定基準**:
-  * アニメ画質（セル画・瞳のハイライト）が美麗であること。
-  * `solo` が遵守され、コラージュや分裂がないこと。
-  * 写真の目鼻立ち・髪型・眼鏡が一致していること。
-* **⚠️ 調整方針**:
-  * 似ていない場合 $\rightarrow$ `ip_weight: 0.70` へ引き上げ。
-  * アニメ絵が硬い場合 $\rightarrow$ `ip_weight: 0.50〜0.55` へ微減、CFG 7.0 へ引き上げ。
+#### 1. 目的
+Phase 3-A で確立した「本人同一性」を一切損なうことなく、**ストーリー（戦士、魔法使い、冒険者等）に応じたダイナミックなアクション・ポージング、表情変化（微笑み、叫び、決意）、全身構図への変換** を実現し、展示来場者に提供して感動を与える絵画クオリティを確立する。
 
----
+#### 2. やること（検証タスク）
+1. **骨格拘束緩和によるポーズ自由度の解放**:
+   * 元写真の証明写真的な「正面棒立ち骨格」をカットし、ダイナミックなアクションポーズ（抜刀、跳躍、振り返り、見上げ等）に身体と顔が自然に追従するスイートスポットを確定する。
+2. **ストーリープロンプトおよび表情の注入**:
+   * ストーリー演出タグ（`dynamic pose, full body, fantasy warrior, glowing sword, dynamic angle, shouting/confident smile`）を注入し、シーンに合致した迫力ある構図を生成する。
+3. **引き構図・全身構図における顔潰れ対策**:
+   * 人物が画面奥に配置された際、遠景の顔が潰れないよう FaceDetailer を連携させ、全身構図でも顔のディテール（目鼻立ち・眼鏡）を鮮明に保つ。
+4. **全体調和・顧客提供価値の検証**:
+   * 背景、エフェクト（魔法光や風）、衣装と、本人の顔が浮くことなく完全に調和し、持ち帰りたくなる1枚のアートとして成立しているかを評価する。
 
-### Phase 3-2: 【第2段階：動的構図・表情の適用（ポーズ自由度実証）】
-* **目的**: 第1段階の設定を維持したまま、ダイナミックなアクション（抜刀・振り返り・表情指示）が元写真の正面向きに拘束されず追従するかを実証する。
-* **骨格拘束緩和のトレードオフ検証**:
-  * `cn_strength` が高すぎる（> 0.25）と正面固定される。
-  * `cn_strength` が低すぎる（< 0.08）と顔立ちが崩れ、別人化する。
-  * スイートスポット（`0.12〜0.18`、推奨 `0.15`）を確定させる。
-* **🚧 Gate 3-2 判定基準**:
-  * 抜刀や振り返りポーズに身体と顔が自然に追従していること。
-  * 元写真の真顔に固定されず、指示した表情（叫び、微笑み）になっていること。
-  * アクション時も第1段階で確認された人物同一性が維持されていること。
-* **⚠️ 調整方針**:
-  * 首が正面を向く場合 $\rightarrow$ `cn_strength: 0.10` へ引き下げ、`side profile` を強調。
-  * 特徴が抜ける場合 $\rightarrow$ `ip_weight: 0.65` へ微増、`end_at: 0.85` 設定。
+#### 3. ワークフロー推奨構成
+* **ApplyInstantIDAdvanced (Base)**: `ip_weight: 0.65〜0.70`, **`cn_strength: 0.12〜0.18 (推奨 0.15)`**, `end_at: 0.85`
+* **プロンプト**: ストーリー情景文 ＋ WD14 外見タグ
+* **FaceDetailer**: `wildcard` に顔特化タグ（`detailed beautiful anime eyes, clear pupils`）を注入し、全身タグによる顔内ノイズ混入を防止。
 
----
+#### 4. 🚧 Gate 3-B 判定基準（合格条件）
+| # | チェック項目 | 合格基準 | 確認方法 | 合否 |
+| :-: | :--- | :--- | :--- | :---: |
+| B-1 | **ポーズ追従性** | 抜刀や跳躍、斜めアングルに身体と頭部が自然に追従し、首折れや正面固定がないこと | 目視確認 | ☐ |
+| B-2 | **表情・ストーリー演出** | 指示した表情（叫び、笑顔等）や世界観エフェクトが破綻なく描画されていること | 目視確認 | ☐ |
+| B-3 | **動的変換時の本人性維持** | アクションポーズや全身構図になっても、Phase 3-A で確立した本人と同一人物に見えること | 目視確認 | ☐ |
+| B-4 | **引き構図の解像感** | 全身（full body）描画時でも、顔・瞳・眼鏡が潰れず綺麗にリファインされていること | 拡大確認 | ☐ |
 
-### Phase 3-3: 【第3段階：外見属性の完全自動化実証（WD14 Tagger 統合）】
-* **目的**: 手動タグを完全撤廃し、`WD14 Tagger` から抽出されたタグと情景プロンプトを `Concatenate Text` で結合。**写真を入力するだけで、手動介入なしに第1・第2段階と同等の品質・同一性が得られるかを実証する**。
-* **ノード設定**:
-  * `WD14 Tagger`: `threshold: 0.35`, `character_threshold: 0.85`, `replace_underscore: true`, `trailing_comma: true`
-  * `Concatenate Text`:
-    * `string_a`: 情景プロンプト（`masterpiece, best quality, anime art style, vibrant colors, solo, 1boy, fantasy warrior, dynamic angle...`）
-    * `string_b`: WD14 Tagger の出力 `STRING`（抽出された外見タグ）
-    * `delimiter`: `, `
-* **🚧 Gate 3-3 判定基準**:
-  * 手動タグなしで、写真の髪型・髪色・眼鏡が正しく自動抽出・反映されること。
-  * 不要なノイズタグ（服の色や背景タグ）によって構図や画質が崩れないこと。
-* **⚠️ 調整方針**:
-  * 眼鏡や髪型が抜ける場合 $\rightarrow$ `threshold: 0.25〜0.30` に下げて検出感度を上げる。
-  * 余計な背景タグが混ざる場合 $\rightarrow$ `exclude_tags` に除外タグを追加。
+* **⚠️ 不合格時の対処手順**:
+  * 首が正面を向いたままポーズと乖離する $\rightarrow$ `cn_strength: 0.12` へ緩和、`end_at: 0.80` に短縮。
+  * 動的ポーズで顔が崩れて別人化する $\rightarrow$ `cn_strength: 0.18` へ微増、`ip_weight: 0.70` へ補強。
+  * 顔の中に剣やマントのエフェクトが混ざる $\rightarrow$ FaceDetailer の `positive` または `wildcard` を顔専用プロンプトに完全分離。
 
 ---
 
-### Phase 3-4: 【第4段階：引き構図・小顔対策（FaceDetailer 要否検証）】
-* **目的**: 全身構図（`full body`）で人物が遠景に配置された際、顔が潰れるかを確認し、`FaceDetailer` による修復の必要性と、処理時間（+2〜3秒）のトレードオフを判定する。
-* **🚧 Gate 3-4 判定基準**:
-  * 引き構図でも目・瞳・眼鏡が破綻せず綺麗に描かれていること。
-  * FaceDetailer を適用した場合に別人化していないこと。
-* **⚠️ 調整方針**:
-  * **補正なしで十分に綺麗な場合** $\rightarrow$ **FaceDetailer は不採用（単一パス）**。処理時間とメモリを節約。
-  * 潰れる場合のみ $\rightarrow$ **条件付き FaceDetailer（`bbox/face_yolov8m.pt`, `denoise: 0.25〜0.30`）** を採用。
+### Phase 3-C: 【第3期】生成時間の短縮・展示運用最適化 & API確定
+
+#### 1. 目的
+Phase 3-A（本人同一性）と Phase 3-B（動的演出・絵画完成度）で確立した品質を**1ミリも妥協することなく、展示ブースで顧客を待たせないレスポンス速度（生成時間短縮）と安定性を実現**し、FastAPI オーケストレーター（Phase 4）に接続可能な完全自動 API ワークフロー（`storyweaver_anime_api.json`）を確定する。
+
+#### 2. やること（検証タスク）
+1. **高速化手法の比較実証**:
+   * **案 1: Lightning LoRA 8-step / 4-step 導入**（KSampler 8 steps, FaceDetailer 5 steps $\rightarrow$ **合計 約6〜8秒**）。
+   * **案 2: 標準 Animagine のサンプリングステップ最適化**（KSampler 20 steps, FaceDetailer 10 steps $\rightarrow$ **合計 約12〜14秒**）。
+   * それぞれの生成時間と、Gate 3-A / 3-B で確立した品質・本人同一性とのトレードオフを厳密に比較評価する。
+2. **展示運用レイテンシ許容基準の検証**:
+   * 撮影から最終画像出力までの合計時間が **20秒以内（目標 15秒以内）** に収まることを実測・記録する。
+3. **VRAM 14.5GB 以内 & ゼロダウンタイム検証**:
+   * 連続生成（5回以上）を行い、VRAM リークや OOM（Out of Memory）、温度上昇によるスロットリングがないことを確認する。
+4. **完全自動化 API ワークフローの出力と検証**:
+   * 「写真（IMAGE）＋ ストーリープロンプト（STRING）」を外部から注入するだけで全自動稼働する `storyweaver_anime_api.json` を出力・テスト実行する。
+
+#### 3. 🚧 Gate 3-C 判定基準（最終関門）
+| # | チェック項目 | 合格基準 | 確認方法 | 合否 |
+| :-: | :--- | :--- | :--- | :---: |
+| C-1 | **生成レイテンシ** | 1回のイラスト生成が **20秒以内**（目標 15秒以内）で完了すること | 処理時間実測 | ☐ |
+| C-2 | **品質・本人性の非劣化** | 高速化後も Gate 3-A（本人同一性）および Gate 3-B（動的演出）の基準を満たしていること | A/B 比較評価 | ☐ |
+| C-3 | **OOM ゼロ (VRAM ≤ 14.5GB)** | 連続生成中に VRAM 14.5GB を一度も超えず、クラッシュしないこと | `nvidia-smi` 監視 | ☐ |
+| C-4 | **完全自動 API JSON 確立** | `storyweaver_anime_api.json` が正常に出力され、手動介入なしで再現実行できること | API 実行検証 | ☐ |
+
+* **⚠️ 不合格時の対処手順**:
+  * Lightning LoRA で顔の陰影が崩れる $\rightarrow$ LoRA strength を `0.8` に下げるか、案2（標準モデル 20 steps、約13秒）を採用。
+  * VRAM が 14.5GB を超える $\rightarrow$ FaceDetailer の `guide_size` を 768 から 512 に調整、または tiled_decode 有効化。
 
 ---
 
-### Phase 3-5: 【第5段階：高速化・安定化 & 完全自動化 API ワークフロー出力】
-* **目的**: 完全自動化されたワークフローに対し、展示運用に耐える安定性、レイテンシ許容基準（≤ 20秒）の達成を確認し、最終成果物 **`storyweaver_anime_api.json`** を出力する。
-* **レイテンシ許容基準**:
-  * **目標レイテンシ**: 撮影から画像生成完了まで **15秒以内**（許容上限: 20秒以内）。
-  * 処理内訳目安:
-    - WD14 Tagger: ~0.8秒
-    - InsightFace (FaceAnalysis): ~0.5秒
-    - KSampler (Base 30 steps: ~14秒 / Lightning 8-step: ~4.5秒 / Lightning 4-step: ~2.5秒)
-    - VAEDecode: ~0.6秒
-* **🚧 Gate 3-5 判定基準（最終関門）**:
-  1. **完全自動化の成立**: 写真と情景プロンプトを流すだけで、手動介入なしに全自動生成されること。
-  2. **OOM ゼロ (VRAM ≤ 14.5GB)**: 連続生成中に VRAM 14.5GB を一度も超えないこと。
-  3. **レイテンシ基準達成**: 合計生成時間が 20秒以内であること。
-  4. **API Format JSON 出力**: `storyweaver_anime_api.json` が正常に出力・保存され、FastAPI からロード可能なこと。
+## 3. フェーズ間の連携と全体マイルストーン
+
+```
+【Phase 3-A】本人同一性・アニメ画質の確立 (ポートレート)
+     │
+     ▼ 🚧 Gate 3-A 合格 (似ている！美麗！)
+【Phase 3-B】動的ポージング・表情と顧客提供品質 (ストーリー連動)
+     │
+     ▼ 🚧 Gate 3-B 合格 (かっこいい！ポーズ追従！提供価値成立！)
+【Phase 3-C】生成時間短縮・展示運用最適化 & API確定 (高速化)
+     │
+     ▼ 🚧 Gate 3-C 合格 (早い！安定！API JSON確定！)
+【Phase 4】FastAPI オーケストレーター統合 (ASR ➔ LLM ➔ ComfyUI)
+```
 
 ---
 
-## 5. まとめ：各サブフェーズとマイルストーン
+## 4. 今回の検証方針の決定
 
-| フェーズ | 主要検証内容 | 手動/自動 | 主な判定指標 | 目標到達点 |
-| :--- | :--- | :---: | :--- | :--- |
-| **Phase 3-1** | 【第1段階】基本画質・本人一致 | 手動タグ | 画質、本人感、`solo` 遵守 | ベースライン確定 (`ip_weight: 0.60`) |
-| **Phase 3-2** | 【第2段階】動的アクション・表情 | 手動タグ | 抜刀追従、正面固定解除 | 骨格拘束確定 (`cn_strength: 0.15`) |
-| **Phase 3-3** | 【第3段階】外見属性の完全自動化 | **完全自動** | WD14 タグ自動結合、特徴再現 | 手動プロンプトの完全撤廃 |
-| **Phase 3-4** | 【第4段階】引き構図・小顔対策 | 完全自動 | 引き顔解像度、別人化なし | FaceDetailer 要否・denoise 確定 |
-| **Phase 3-5** | 【第5段階】高速化 & 安定運用化 | 完全自動 | VRAM ≤ 14.5GB、時間 ≤ 20s | **`storyweaver_anime_api.json` の確定** |
+以上の体系に基づき、**まずはすべての土台となる「Phase 3-A（顔特徴・本人同一性とアニメ品質の確立）」に全リソースを集中** します。
+ポーズ指定や高速化 LoRA を一旦切り離し、Phase 3-A の Gate 合格を目指して検証を進めます。
