@@ -539,8 +539,6 @@ graph TD
 
 ComfyUI を画面上で迷わず組み立てられるように、モデル配置・ノード一覧・端子配線・設定値を完全に定義します。
 
-### 3.1 必要なモデル一覧と保管フォルダ
-
 ### 3.1 実際のローカル配置モデル一覧（確認済み）
 
 ユーザー環境（`C:\pinokio\api\comfy.git\app\models`）に実際に配置されている正確なモデルファイル名は以下の通りです。
@@ -551,11 +549,12 @@ ComfyUI を画面上で迷わず組み立てられるように、モデル配置
 | **InstantIDModelLoader** | `instantid_file` | **`ip-adapter.bin`** | `models/instantid/` |
 | **ControlNetLoader** | `control_net_name` | **`diffusion_pytorch_model.safetensors`** | `models/controlnet/` |
 | **InstantIDFaceAnalysis** | `provider` | **`CPU`** | `models/insightface/models/antelopev2/` (自動参照) |
-| **FaceDetailer** (Phase 3-3) | `model_name` | **`face_yolov8m.pt`** | `models/ultralytics/bbox/` |
+| **FaceDetailer** (Phase 3-4) | `model_name` | **`face_yolov8m.pt`** | `models/ultralytics/bbox/` |
+| **LoRA** (Phase 3-5) | `lora_name` | **`sdxl_lightning_8step_lora.safetensors`** | `models/loras/` |
 
 ---
 
-### 3.2 必要なノード一覧表（全 12 ノード）
+### 3.2 必要なノード一覧表（完全自動化ワークフロー：全 14 ノード）
 
 ComfyUI キャンバスの空白を **ダブルクリック $\rightarrow$ 検索** して配置します。
 
@@ -566,13 +565,15 @@ ComfyUI キャンバスの空白を **ダブルクリック $\rightarrow$ 検索
 | **3** | `ControlNetLoader` (`ControlNet`) | InstantID 専用 ControlNet (`diffusion_pytorch_model.safetensors`) の読み込み |
 | **4** | `InstantIDFaceAnalysis` (`FaceAnalysis`) | InsightFace (antelopev2) による顔特徴抽出器 (CPU) |
 | **5** | `Load Image` (`Load Image`) | 来場者の顔写真（テスト画像）の入力 |
-| **6** | `ApplyInstantIDAdvanced` (`Apply InstantID Advanced`) | **【最重要】顔特徴（ip_weight）と骨格拘束（cn_strength）を独立制御** |
-| **7** | `CLIPTextEncode` (`CLIP Text`) | Positive プロンプト（アニメ品質タグ＋情景） |
-| **8** | `CLIPTextEncode` (`CLIP Text`) | Negative プロンプト（実写排除・品質低下排除） |
-| **9** | `EmptyLatentImage` (`Empty Latent`) | 生成解像度 (1024 x 1024) |
-| **10** | `KSampler` (`KSampler`) | 30 steps / CFG 6.5 による美麗アニメレンダリング |
-| **11** | `VAEDecode` (`VAE Decode`) | 潜在変数からイラスト画像への現像 |
-| **12** | `Save Image` (`Save Image`) | 完成した美麗アニメイラストの保存・プレビュー |
+| **6** | `WD14Tagger\|pysssss` (`WD14 Tagger`) | **【自動化】顔写真から外見属性（髪型・眼鏡等）を自動抽出** |
+| **7** | `StringConcatenate` (`Concatenate Text`) | **【自動化】情景プロンプトと WD14 タグを結合** |
+| **8** | `CLIPTextEncode` (`CLIP Text`) | Positive プロンプト（text 端子を入力化） |
+| **9** | `CLIPTextEncode` (`CLIP Text`) | Negative プロンプト（実写排除・品質低下排除） |
+| **10** | `ApplyInstantIDAdvanced` (`Apply InstantID Advanced`) | **顔特徴（`ip_weight`）と骨格拘束（`cn_strength`）を独立制御** |
+| **11** | `EmptyLatentImage` (`Empty Latent`) | 生成解像度 (1024 x 1024) |
+| **12** | `KSampler` (`KSampler`) | 30 steps / CFG 6.5 による美麗アニメレンダリング |
+| **13** | `VAEDecode` (`VAE Decode`) | 潜在変数からイラスト画像への現像 |
+| **14** | `Save Image` (`Save Image`) | 完成した美麗アニメイラストの保存・プレビュー |
 
 ---
 
@@ -581,60 +582,56 @@ ComfyUI キャンバスの空白を **ダブルクリック $\rightarrow$ 検索
 ```mermaid
 graph LR
     subgraph 1. モデル群の読み込み
-        CKPT["1. CheckpointLoaderSimple
-(animagine-xl-3.1.float8)"]
-        I_LOAD["2. InstantIDModelLoader
-(ip-adapter.bin)"]
-        C_LOAD["3. ControlNetLoader
-(diffusion_pytorch_model)"]
-        FA["4. InstantIDFaceAnalysis
-(provider: CPU)"]
+        CKPT["1. CheckpointLoaderSimple"]
+        I_LOAD["2. InstantIDModelLoader"]
+        C_LOAD["3. ControlNetLoader"]
+        FA["4. InstantIDFaceAnalysis"]
     end
 
-    subgraph 2. 写真入力 & 条件付け
-        IMG["5. Load Image
-(来場者顔写真)"]
-        POS["7. CLIPTextEncode (Pos)
-(masterpiece, anime, solo...)"]
-        NEG["8. CLIPTextEncode (Neg)
-(lowres, realistic, photo...)"]
-        APP["6. ApplyInstantIDAdvanced
+    subgraph 2. 外見自動抽出 & プロンプト結合
+        IMG["5. Load Image"]
+        TAGGER["6. WD14 Tagger"]
+        CONCAT["7. Concatenate Text"]
+        POS["8. CLIPTextEncode (Pos)"]
+        NEG["9. CLIPTextEncode (Neg)"]
+    end
+
+    subgraph 3. InstantID 転生 & 生成
+        APP["10. ApplyInstantIDAdvanced
 ip_weight: 0.60
 cn_strength: 0.15"]
-        LATENT["9. EmptyLatentImage
+        LATENT["11. EmptyLatentImage
 (1024 x 1024)"]
-    end
-
-    subgraph 3. 高画質生成
-        KS["10. KSampler
-(Steps: 30 / CFG: 6.5 / euler_ancestral)"]
+        KS["12. KSampler
+(Steps: 30 / CFG: 6.5)"]
     end
 
     subgraph 4. 現像・保存
-        DEC["11. VAEDecode"]
-        SAVE["12. Save Image"]
+        DEC["13. VAEDecode"]
+        SAVE["14. Save Image"]
     end
 
-    %% InstantID Advanced への入力
-    I_LOAD --"INSTANTID"--> APP
-    FA --"FACEANALYSIS"--> APP
-    C_LOAD --"CONTROL_NET"--> APP
-    IMG --"🔵 IMAGE"--> APP
+    %% 自動タグ抽出 & 結合
+    IMG --"🔵 IMAGE"--> TAGGER
+    TAGGER --"⚪ STRING (外見タグ)"--> CONCAT
+    CONCAT --"⚪ STRING (合成プロンプト)"--> POS
+
+    %% 条件付け & InstantID
+    CKPT --"🟡 CLIP"--> POS
+    CKPT --"🟡 CLIP"--> NEG
     CKPT --"🟣 MODEL"--> APP
+    I_LOAD --"INSTANTID"--> APP
+    C_LOAD --"CONTROL_NET"--> APP
+    FA --"FACEANALYSIS"--> APP
+    IMG --"🔵 IMAGE"--> APP
     POS --"🟠 CONDITIONING"--> APP
     NEG --"🟠 CONDITIONING"--> APP
 
-    %% CLIP 接続
-    CKPT --"🟡 CLIP"--> POS
-    CKPT --"🟡 CLIP"--> NEG
-
-    %% KSampler への接続
+    %% サンプリング & 現像
     APP --"🟣 MODEL"--> KS
     APP --"🟠 positive"--> KS
     APP --"🟠 negative"--> KS
     LATENT --"🌸 LATENT"--> KS
-
-    %% 現像接続
     KS --"🌸 LATENT"--> DEC
     CKPT --"🔴 VAE"--> DEC
     DEC --"🔵 IMAGE"--> SAVE
@@ -649,26 +646,29 @@ cn_strength: 0.15"]
 
 ---
 
-### 3.4 🔌 端子接続の完全一覧表（全 16 本）
+### 3.4 🔌 端子接続の完全一覧表（全 19 本）
 
 | # | 出発元ノード | 出発端子（右側） | 色 | つなぐ先ノード | 受け取り端子（左側） |
 | :-: | :--- | :--- | :-: | :--- | :--- |
-| **1** | 1. CheckpointLoaderSimple | `MODEL` | 🟣 紫 | 6. ApplyInstantIDAdvanced | `model` |
-| **2** | 1. CheckpointLoaderSimple | `CLIP` | 🟡 黄 | 7. CLIPTextEncode (Pos) | `clip` |
-| **3** | 1. CheckpointLoaderSimple | `CLIP` | 🟡 黄 | 8. CLIPTextEncode (Neg) | `clip` |
-| **4** | 1. CheckpointLoaderSimple | `VAE` | 🔴 赤 | 11. VAEDecode | `vae` |
-| **5** | 2. InstantIDModelLoader | `INSTANTID` | 🟢 緑 | 6. ApplyInstantIDAdvanced | `instantid` |
-| **6** | 3. ControlNetLoader | `CONTROL_NET` | 🟣 紫 | 6. ApplyInstantIDAdvanced | `control_net` |
-| **7** | 4. InstantIDFaceAnalysis | `FACEANALYSIS` | 🔵 青 | 6. ApplyInstantIDAdvanced | `insightface` |
-| **8** | 5. Load Image | `IMAGE` | 🔵 青 | 6. ApplyInstantIDAdvanced | `image` |
-| **9** | 7. CLIPTextEncode (Pos) | `CONDITIONING` | 🟠 橙 | 6. ApplyInstantIDAdvanced | `positive` |
-| **10** | 8. CLIPTextEncode (Neg) | `CONDITIONING` | 🟠 橙 | 6. ApplyInstantIDAdvanced | `negative` |
-| **11** | 6. ApplyInstantIDAdvanced | `MODEL` | 🟣 紫 | 10. KSampler | `model` |
-| **12** | 6. ApplyInstantIDAdvanced | `positive` | 🟠 橙 | 10. KSampler | `positive` |
-| **13** | 6. ApplyInstantIDAdvanced | `negative` | 🟠 橙 | 10. KSampler | `negative` |
-| **14** | 9. EmptyLatentImage | `LATENT` | 🌸 ピンク | 10. KSampler | `latent_image` |
-| **15** | 10. KSampler | `LATENT` | 🌸 ピンク | 11. VAEDecode | `samples` |
-| **16** | 11. VAEDecode | `IMAGE` | 🔵 青 | 12. Save Image | `images` |
+| **1** | 5. Load Image | `IMAGE` | 🔵 青 | 6. WD14 Tagger | `image` |
+| **2** | 6. WD14 Tagger | `STRING` | ⚪ 白 | 7. Concatenate Text | `string_b` |
+| **3** | 7. Concatenate Text | `STRING` | ⚪ 白 | 8. CLIPTextEncode (Pos) | `text` *(※右クリックで入力化)* |
+| **4** | 1. CheckpointLoaderSimple | `CLIP` | 🟡 黄 | 8. CLIPTextEncode (Pos) | `clip` |
+| **5** | 1. CheckpointLoaderSimple | `CLIP` | 🟡 黄 | 9. CLIPTextEncode (Neg) | `clip` |
+| **6** | 1. CheckpointLoaderSimple | `MODEL` | 🟣 紫 | 10. ApplyInstantIDAdvanced | `model` |
+| **7** | 2. InstantIDModelLoader | `INSTANTID` | 🟢 緑 | 10. ApplyInstantIDAdvanced | `instantid` |
+| **8** | 3. ControlNetLoader | `CONTROL_NET` | 🟣 紫 | 10. ApplyInstantIDAdvanced | `control_net` |
+| **9** | 4. InstantIDFaceAnalysis | `FACEANALYSIS` | 🔵 青 | 10. ApplyInstantIDAdvanced | `insightface` |
+| **10** | 5. Load Image | `IMAGE` | 🔵 青 | 10. ApplyInstantIDAdvanced | `image` |
+| **11** | 8. CLIPTextEncode (Pos) | `CONDITIONING` | 🟠 橙 | 10. ApplyInstantIDAdvanced | `positive` |
+| **12** | 9. CLIPTextEncode (Neg) | `CONDITIONING` | 🟠 橙 | 10. ApplyInstantIDAdvanced | `negative` |
+| **13** | 10. ApplyInstantIDAdvanced | `MODEL` | 🟣 紫 | 12. KSampler | `model` |
+| **14** | 10. ApplyInstantIDAdvanced | `positive` | 🟠 橙 | 12. KSampler | `positive` |
+| **15** | 10. ApplyInstantIDAdvanced | `negative` | 🟠 橙 | 12. KSampler | `negative` |
+| **16** | 11. EmptyLatentImage | `LATENT` | 🌸 ピンク | 12. KSampler | `latent_image` |
+| **17** | 12. KSampler | `LATENT` | 🌸 ピンク | 13. VAEDecode | `samples` |
+| **18** | 1. CheckpointLoaderSimple | `VAE` | 🔴 赤 | 13. VAEDecode | `vae` |
+| **19** | 13. VAEDecode | `IMAGE` | 🔵 青 | 14. Save Image | `images` |
 
 ---
 
@@ -680,29 +680,11 @@ cn_strength: 0.15"]
 | **2. InstantIDModelLoader** | `instantid_file` | **`ip-adapter.bin`** | InstantID 公式アダプタ |
 | **3. ControlNetLoader** | `control_net_name` | **`diffusion_pytorch_model.safetensors`** | InstantID 公式 ControlNet |
 | **4. InstantIDFaceAnalysis** | `provider` | **`CPU`** | InsightFace を CPU 実行し VRAM 0.4GB 節約 |
-| **6. ApplyInstantIDAdvanced** | `ip_weight`<br>`cn_strength`<br>`start_at`<br>`end_at` | **`0.60`**<br>**`0.15`**<br>`0.0`<br>`1.0` | **【最重要】**<br>顔特徴を `0.60` で転写しつつ、骨格拘束を `0.15` に極小化してポーズ追従を確保 |
-| **9. EmptyLatentImage** | `width`<br>`height` | **`1024`**<br>**`1024`** | SDXL 標準高精細解像度 |
-| **10. KSampler** | `steps`<br>`cfg`<br>`sampler_name`<br>`scheduler`<br>`denoise` | **`30`**<br>**`6.5`**<br>**`euler_ancestral`**<br>**`normal`**<br>**`1.0`** | Animagine 公式推奨値。美麗なアニメ塗りとハイライトを描画 |
-
----
-
-### 3.6 プロンプト設定（Danbooru 品質準拠）
-
-- **Positive (7 番 CLIPTextEncode に入力)**:
-  ```text
-  masterpiece, best quality, very aesthetic, anime art style, vibrant colors,
-  solo, 1boy, confident smile, upper body, looking at viewer,
-  fantasy adventurer, magical aura, sharp focus, detailed illustration
-  ```
-  *(※被写体が女性の場合は `1boy` を `1girl` に変更)*
-
-- **Negative (8 番 CLIPTextEncode に入力)**:
-  ```text
-  lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit,
-  fewer digits, cropped, worst quality, low quality, normal quality,
-  jpeg artifacts, signature, watermark, username, blurry, artist name,
-  realistic, photograph, 3d render, deformed
-  ```
+| **6. WD14 Tagger** | `threshold`<br>`replace_underscore` | **`0.35`**<br>**`true`** | 髪型・眼鏡等の主要外見属性を的確に抽出 |
+| **7. Concatenate Text** | `delimiter` | **`, `** | 情景指示と外見タグをカンマ区切りで結合 |
+| **10. ApplyInstantIDAdvanced** | `ip_weight`<br>`cn_strength`<br>`start_at`<br>`end_at` | **`0.60`**<br>**`0.15`**<br>`0.0`<br>`1.0` | **【最重要】**<br>顔特徴を `0.60` で転写しつつ、骨格拘束を `0.15` に極小化してポーズ追従を確保 |
+| **11. EmptyLatentImage** | `width`<br>`height` | **`1024`**<br>**`1024`** | SDXL 標準高精細解像度 |
+| **12. KSampler** | `steps`<br>`cfg`<br>`sampler_name`<br>`scheduler`<br>`denoise` | **`30`**<br>**`6.5`**<br>**`euler_ancestral`**<br>**`normal`**<br>**`1.0`** | Animagine 公式推奨値。美麗なアニメ塗りとハイライトを描画 |
 
 ---
 
@@ -781,44 +763,39 @@ cn_strength: 0.15"]
 
 ---
 
-### Phase 3-3: 【引き構図・顔崩れ対策の実証】（FaceDetailer 要否検証）
-
-- **目的**: 全身構図（`full body`）で人物が遠景に配置された際、顔が潰れるかを確認し、潰れる場合は FaceDetailer で「別人化せずに高精細化できるか」を実証する。
-- **検証手順**:
-  1. まず **補正なし Direct 生成** を行い、顔領域をクロップ拡大して評価。
-  2. 潰れている場合のみ、**条件付き FaceDetailer**（`bbox/face_yolov8m.pt`, `denoise: 0.35`）を適用して比較。
-
-#### 🚧 Gate 3-3 判定基準
-| チェック項目 | 合格基準 | 合否 |
-| :--- | :--- | :---: |
-| 引きの顔解像度 | 全身構図でも目・瞳・眼鏡・口元が綺麗に描かれていること | ☐ |
-| 別人化の非発生 | 補正後の顔が元写真および Phase 3-1 の面影を保ち、別人化していないこと | ☐ |
-| 首・髪境界の自然さ | 再描画領域と周囲の境界線に違和感・色浮きがないこと | ☐ |
-
-- **【OK の場合】**:
-  - **パターン A (補正不要)**: Base 単体で十分に綺麗 → **FaceDetailer なし（単一パス）を採用**（最善構成）。
-  - **パターン B (補正成功)**: FaceDetailer で美麗化 → **条件付き FaceDetailer（BBox長辺 < 180px 発火）を採用**。
-  - いずれも品質実証完了！→ **Phase 3-4（運用安定化 & API化）へ進む**。
-- **【NG の場合】**:
-  - FaceDetailer で別人化する場合: `denoise: 0.25〜0.30` へ低下。それでも別人化するなら FaceDetailer は不採用とし、全体解像度調整へ切り替え。
+### Phase 3-3: 【第3段階：外見属性の完全自動化実証（WD14 Tagger 統合）】
+- **目的**: 手動タグを完全撤廃し、`WD14 Tagger` から抽出されたタグと情景プロンプトを `Concatenate Text` で結合。**写真を入力するだけで、手動介入なしに第1・第2段階と同等の品質・同一性が得られるかを実証する**。
+- **ノード設定**:
+  - `WD14 Tagger`: `threshold: 0.35`, `character_threshold: 0.85`, `replace_underscore: true`, `trailing_comma: true`
+  - `Concatenate Text`: `delimiter: ", "`
+- **🚧 Gate 3-3 判定基準**:
+  1. 手動タグなしで、写真の髪型・髪色・眼鏡が自動抽出・反映されること。
+  2. 不要な背景・服色ノイズタグによって画質や構図が崩れないこと。
+- **⚠️ 調整方針**:
+  - 特徴が抜ける場合 $\rightarrow$ `threshold: 0.25〜0.30` に下げて感度アップ。
+  - 余計なタグが混ざる場合 $\rightarrow$ `exclude_tags` に除外タグを追加。
 
 ---
 
-### Phase 3-4: 【運用安定化・APIワークフロー化】
+### Phase 3-4: 【第4段階：引き構図・小顔対策（FaceDetailer 要否検証）】
+- **目的**: 全身構図（`full body`）で人物が遠景に配置された際、顔が潰れるかを確認し、`FaceDetailer` による修復の必要性と、処理時間（+2〜3秒）のトレードオフを判定する。
+- **🚧 Gate 3-4 判定基準**: 引き構図での目鼻立ち解像度、別人化の非発生。
+- **⚠️ 調整方針**: 補正なしで十分綺麗な場合は FaceDetailer 不採用（単一パス確定）。潰れる場合のみ条件付き FaceDetailer（`denoise: 0.25〜0.30`）を採用。
 
-- **目的**: 画質・構図が実証された確定構成に対し、展示運用に耐える安定性（VRAM ≤ 14.5GB、Ollama直列化 `keep_alive: 0`）を確認し、API Format JSON を出力する。
+---
 
-#### 🚧 Phase Gate 3-4 判定基準（最終関門）
-| # | チェック項目 | 合格基準 | 確認方法 | 合否 |
-| :-: | :--- | :--- | :--- | :---: |
-| 1 | 絵画品質・構図の成立 | Phase 3-1〜3-3 の全要件を満たしていること | レビュー確認 | ☐ |
-| 2 | OOM ゼロ (VRAM ≤ 14.5GB) | 連続生成中に VRAM 14.5GB を一度も超えないこと | `nvidia-smi` 監視 | ☐ |
-| 3 | メモリ直列化の動作 | Ollama 完了後にモデルが即時アンロードされること | `keep_alive: 0` 確認 | ☐ |
-| 4 | 生成レイテンシ記録 | 所要時間を実測・記録し、タイムアウト値を確定 | 実測記録 | ☐ |
-| 5 | API ワークフロー出力 | SceneSpec を動的注入可能な JSON が保存されていること | `storyweaver_anime_api.json` | ☐ |
+### Phase 3-5: 【第5段階：高速化・安定化 & 完全自動化 API ワークフロー出力】
+- **目的**: 完全自動化されたワークフローに対し、展示運用に耐える安定性、レイテンシ許容基準（≤ 20秒）の達成を確認し、最終成果物 **`storyweaver_anime_api.json`** を出力する。
+- **レイテンシ許容基準**: 目標 **15秒以内**（許容上限: 20秒以内）。
+- **🚧 Gate 3-5 判定基準（最終関門）**:
+  1. **完全自動化の成立**: 写真と情景プロンプトを流すだけで、手動介入なしに全自動生成されること。
+  2. **OOM ゼロ (VRAM ≤ 14.5GB)**: 連続生成中に VRAM 14.5GB を一度も超えないこと。
+  3. **レイテンシ基準達成**: 合計生成時間が 20秒以内であること。
+  4. **API Format JSON 出力**: `storyweaver_anime_api.json` が正常に出力・保存され、FastAPI からロード可能なこと。
 
 - **【OK の場合】**: Phase 3 完了！→ **Phase 4（FastAPI オーケストレーター構築）へ進む**。
 - **【NG の場合】**: VRAM 超過時は ComfyUI のオフロード引数を調整。
+
 
 ---
 
