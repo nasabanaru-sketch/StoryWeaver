@@ -42,24 +42,6 @@ flowchart TD
 
     classDef gate fill:#d97706,stroke:#fcd34d,color:#fff;
     classDef phase4 fill:#16a34a,stroke:#22c55e,color:#fff;
-```構図)"]
-        B2 --> B3["表情変化の追従 (叫び/微笑み)"]
-        B3 --> B4["全身・引き構図での小顔潰れ防止"]
-        B4 --> GB{"🚧 Gate 3-B<br>・ポーズ/表情への完全追従（首折れなし）<br>・動的変換後も本人同一性を維持<br>・提供物として感動を与える絵の完成度"}
-    end
-
-    subgraph P3C["Phase 3-C: 【第3期】生成時間の短縮・展示運用最適化 & API確定"]
-        C1["高速化手法比較 (Lightning LoRA / steps削減)"] --> C2["画質維持とレイテンシの最適点決定"]
-        C2 --> C3["VRAM ≤ 14.5GB & ゼロダウンタイム検証"]
-        C3 --> GC{"🚧 Gate 3-C (最終関門)<br>・生成時間 ≤ 20秒 (目標 ≤ 15秒)<br>・OOM ゼロ<br>・完全自動 storyweaver_anime_api.json 出力"}
-    end
-
-    GA -- "合格 (本人性と画質の確立)" --> P3B
-    GB -- "合格 (動的演出と提供品質の確立)" --> P3C
-    GC -- "合格 (運用速度とAPIの確立)" --> PHASE4["Phase 4: FastAPI オーケストレーター統合へ"]
-
-    classDef gate fill:#d97706,stroke:#fcd34d,color:#fff;
-    classDef phase4 fill:#16a34a,stroke:#22c55e,color:#fff;
 ```
 
 ---
