@@ -13,7 +13,7 @@ trigger: manual
 ### 1.1 VRAM 割当の上限監視
 - RTX 3080 Laptop (16GB) 環境下において、プロセス全体の VRAM 占有が **14.5 GB を超過しない** 設計を維持すること。
 - ComfyUI の大規模モデル（Animagine XL v3.1）は必ず **FP8版（量子化版）** を使用すること。FP16版の無断投入を禁止する。
-- 4-step 生成 LoRA（`sdxl_lightning_4step_lora.safetensors`）のステップ数は `4` に固定し、過剰なサンプリングステップ（20〜30等）によるリソース占有を避けること。
+- 画質・本人同一性のベースライン確立期間中は、サンプリングステップ数（20〜30 steps 等）や高精細FaceDetailerを十分に活用して最高画質を追求すること。生成時間は一旦最大7分（420秒）まで許容し、短時間制約による画質劣化を防止する。
 
 ### 1.2 モデルの同時推論排他制御
 - FastAPI 内で重い処理が同時にリクエストされた場合、同時実行数をセマフォ等で制御し、VRAM の一時的なスパイクを防止すること。
@@ -29,19 +29,19 @@ generation_lock = asyncio.Lock()
 ## 2. 通信タイムアウトとポーリング制御
 
 ### 2.1 無限ループの禁止
-- ComfyUI へのキュー投入後のポーリング（`poll_comfyui_result`）には、必ず **最大タイムアウト（例: 20秒）** と **リトライ回数上限** を設けること。
+- ComfyUI へのキュー投入後のポーリング（`poll_comfyui_result`）には、必ず **最大タイムアウト（画質検証期間中は最大 450〜500秒）** と **リトライ回数上限** を設けること。
 - `while True:` による無期限ポーリングコードは禁止。
 ```python
 # 悪い例 (BAD)
 while True:
     hist = requests.get(...)
 
-# 良い例 (GOOD)
-MAX_WAIT_SECONDS = 25
+# 良い例 (GOOD: 最大7分許容に合わせた設定)
+MAX_WAIT_SECONDS = 450  # 最大7分半のポーリング待機を許容
 start_time = time.time()
 while time.time() - start_time < MAX_WAIT_SECONDS:
     # ポーリング処理
-    time.sleep(0.3)
+    time.sleep(0.5)
 else:
     raise TimeoutError("ComfyUI generation timed out.")
 ```
