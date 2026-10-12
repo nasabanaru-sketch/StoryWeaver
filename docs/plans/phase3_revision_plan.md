@@ -175,3 +175,95 @@ Phase 3-A で確立した「本人同一性」を一切損なうことなく、*
 
 以上の体系に基づき、**まずはすべての土台となる「Phase 3-A（顔特徴・本人同一性とアニメ品質の確立）」に全リソースを集中** します。
 ポーズ指定や高速化 LoRA を一旦切り離し、Phase 3-A の Gate 合格を目指して検証を進めます。
+
+---
+
+## 5. Phase 3-A 具体的手順書（ComfyUI 操作仕様書）
+
+ユーザー様が ComfyUI 上で迷わず実施できるよう、現在構築されているワークフロー（JSON `f18856ec-7f35-41b9-bc2f-69126996bcb1`）に対する具体的な変更箇所と設定値を以下に定義します。
+
+### 5.1 前提モデル配置確認
+* **Checkpoint**: `animagine-xl-3.1.float8_e4m3fn.safetensors` (Node 1)
+* **InstantID**: `ip-adapter.bin` (Node 14) ＋ `diffusion_pytorch_model.safetensors` (Node 13) ＋ `antelopev2` (Node 17)
+* **WD14 Tagger**: `wd-swinv2-tagger-v3` (Node 19)
+* **FaceDetailer Bbox**: `bbox/face_yolov8m.pt` (Node 22)
+* **テスト写真**: `reWIN_20260204_20_46_41_Pro.jpg` (Node 12)
+
+### 5.2 ノード別設定変更手順（Step-by-Step）
+
+#### Step 1: 【構図の固定】Node 21 `StringConcatenate` の設定
+* **目的**: 全身・動的ポーズプロンプトを排除し、顔とバストアップ中心に描画リソースを集中させる。
+* **設定変更**:
+  * `string_a` に以下のテキストを入力:
+    ```text
+    masterpiece, best quality, very aesthetic, anime art style,
+    solo, portrait, close-up face, upper body, looking at viewer,
+    detailed facial features, sharp focus, simple background
+    ```
+  * `string_b`: Node 19 (WD14 Tagger) の出力 `STRING` が接続されている状態を維持。
+  * `delimiter`: `, ` を維持。
+
+#### Step 2: 【本人顔立ちの固定】Node 18 `ApplyInstantIDAdvanced` (Base用) の設定
+* **目的**: Animagine XL の美形アニメバイアスに負けない強さで写真の目鼻立ち・輪郭を転写する。
+* **設定変更**:
+  * `ip_weight`: `0.60` $\rightarrow$ **`0.72`** （本人特徴の転写強度を引き上げ）
+  * `cn_strength`: **`0.25`** を維持（正面バストアップ構図で目鼻の配置をしっかり固定）
+  * `end_at`: `0.85` $\rightarrow$ **`1.0`** （サンプリング後半まで顔特徴を維持し標準アニメ顔化を防止）
+
+#### Step 3: 【フル品質サンプリング】Node 2 `KSampler` の設定
+* **目的**: 最大7分許容を活かし、十分なステップ数で美麗なセル画塗り・瞳のグラデーションを完全描画する。
+* **設定変更**:
+  * `steps`: `20` $\rightarrow$ **`28`** （描画密度の向上）
+  * `cfg`: `6.0` $\rightarrow$ **`6.5`** （プロンプト追従性と陰影コントラストの向上）
+  * `sampler_name`: `euler_ancestral` を維持
+  * `scheduler`: `karras` を維持
+  * `denoise`: `1.0` を維持
+
+#### Step 4: 【別人化・首折れの完全阻止】Node 25 および Node 20 (`FaceDetailer`) の設定
+* **目的**: クロップ顔への元写真正面骨格の誤適用を排除し、インペイント強度を抑えて Base の顔立ちを維持したまま高精細化する。
+* **設定変更**:
+  * **Node 25 (`ApplyInstantIDAdvanced` 2個目)**:
+    * `cn_strength`: `0.35` $\rightarrow$ **`0.0`** （★ControlNet 骨格拘束を完全ゼロ化）
+    * `ip_weight`: `0.60` $\rightarrow$ **`0.45`**
+    * `end_at`: `1.0` $\rightarrow$ **`0.70`**
+  * **Node 20 (`FaceDetailer`)**:
+    * `denoise`: `0.45` $\rightarrow$ **`0.26`** （★別人化を防ぎ元顔の目鼻立ち・眼鏡のみを鮮明化）
+    * `bbox_crop_factor`: `2.0` $\rightarrow$ **`1.4`** （首や肩を巻き込まず顔と前髪だけを精密処理）
+    * `feather`: `5` $\rightarrow$ **`10`** （境界のブレンド幅を広げて貼り付け感を排除）
+    * `steps`: `20` を維持
+
+#### Step 5: 【外見属性の確実な抽出】Node 19 `WD14Tagger|pysssss` の設定
+* **目的**: 写真から「眼鏡（glasses）」や「髪型（short hair 等）」が漏れるのを防ぐ。
+* **設定変更**:
+  * `threshold`: `0.40` $\rightarrow$ **`0.30`** （感度を引き上げ、特徴タグを確実に抽出）
+  * `replace_underscore`: `true` を維持
+  * `trailing_comma`: `false` を維持
+
+#### Step 6: 生成実行と確認手順
+1. 右上の **「Queue Prompt」** をクリックして生成を実行。
+2. **Node 26 (`PreviewImage`)**: Base 生成画像（FaceDetailer 適用前）の本人感・アニメ絵柄を確認。
+3. **Node 9 (`SaveImage`)**: FaceDetailer 適用後の完成画像を確認し、Base の顔立ちが壊れず瞳・眼鏡がクリアになっているかを確認。
+
+---
+
+## 6. 履歴管理・検証記録プロトコル（進め方のルール）
+
+チャット内に手順や結果を散逸させず、すべての試行履歴を確実に Git 管理・永続化するため、以下の **検証記録プロトコル** に従って進めます。
+
+```mermaid
+flowchart LR
+    A["① 手順確認<br>(本計画書 第5章)"] --> B["② ComfyUI 設定・生成<br>(Queue Prompt)"]
+    B --> C["③ 実行ログ記録<br>(phase3_execution_log.md)"]
+    C --> D["④ Git コミット<br>(履歴永続化)"]
+    D --> E{"⑤ Gate 3-A 判定<br>(合格なら 3-B へ)"}
+```
+
+1. **手順の参照**:
+   * 作業手順・設定値は必ず本計画書の「第5章」を参照して ComfyUI 上に反映する（チャット指示には依存しない）。
+2. **結果の記録**:
+   * 生成が完了するごとに、検証記録簿 **[phase3_execution_log.md](file:///c:/antigravity/StoryWeaver/docs/plans/phase3_execution_log.md)** に「Run ID、日時、設定値、生成画像名、Gate 判定結果、所感・課題」を追記する。
+3. **履歴の永続化（Git 管理）**:
+   * 実行ログの更新内容は直ちに Git コミットを作成し、どのパラメータでどのような結果が得られたかの履歴を完全に残す。
+4. **チャットの役割**:
+   * チャットは手順指示の場ではなく、「ログ記録完了の報告」「Gate 判定結果の合意」「次の検証方針の決定」を行うコミュニケーションチャネルとして活用する。
+
