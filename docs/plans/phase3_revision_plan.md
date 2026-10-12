@@ -189,60 +189,69 @@ Phase 3-A で確立した「本人同一性」を一切損なうことなく、*
 * **FaceDetailer Bbox**: `bbox/face_yolov8m.pt` (Node 22)
 * **テスト写真**: `reWIN_20260204_20_46_41_Pro.jpg` (Node 12)
 
-### 5.2 ノード別設定変更手順（Step-by-Step）
+### 5.2 ノード別設定変更手順（Step-by-Step：髪型・外見一致是正仕様）
 
-#### Step 1: 【構図の固定】Node 21 `StringConcatenate` の設定
-* **目的**: 全身・動的ポーズプロンプトを排除し、顔とバストアップ中心に描画リソースを集中させる。
+#### Step 1: 【構図・外見特徴の指定】Node 21 `StringConcatenate` の設定
+* **目的**: 顔中心の構図を保ちつつ、本人の最大の特徴である「短髪・坊主頭（buzz cut）」「広い額（exposed forehead）」「穏やかな微笑み（gentle smile）」を明示指定する。
 * **設定変更**:
   * `string_a` に以下のテキストを入力:
     ```text
     masterpiece, best quality, very aesthetic, anime art style,
     solo, portrait, close-up face, upper body, looking at viewer,
+    buzz cut, very short hair, exposed forehead, gentle smile,
     detailed facial features, sharp focus, simple background
     ```
   * `string_b`: Node 19 (WD14 Tagger) の出力 `STRING` が接続されている状態を維持。
   * `delimiter`: `, ` を維持。
 
 #### Step 2: 【本人顔立ちの固定】Node 18 `ApplyInstantIDAdvanced` (Base用) の設定
-* **目的**: Animagine XL の美形アニメバイアスに負けない強さで写真の目鼻立ち・輪郭を転写する。
+* **目的**: 写真の目鼻立ち・輪郭を確実に転写する。
 * **設定変更**:
-  * `ip_weight`: `0.60` $\rightarrow$ **`0.72`** （本人特徴の転写強度を引き上げ）
-  * `cn_strength`: **`0.25`** を維持（正面バストアップ構図で目鼻の配置をしっかり固定）
-  * `end_at`: `0.85` $\rightarrow$ **`1.0`** （サンプリング後半まで顔特徴を維持し標準アニメ顔化を防止）
+  * `ip_weight`: `0.70〜0.72` （維持）
+  * `cn_strength`: `0.25` （維持）
+  * `end_at`: `1.0` （維持）
 
 #### Step 3: 【フル品質サンプリング】Node 2 `KSampler` の設定
-* **目的**: 最大7分許容を活かし、十分なステップ数で美麗なセル画塗り・瞳のグラデーションを完全描画する。
 * **設定変更**:
-  * `steps`: `20` $\rightarrow$ **`28`** （描画密度の向上）
-  * `cfg`: `6.0` $\rightarrow$ **`6.5`** （プロンプト追従性と陰影コントラストの向上）
-  * `sampler_name`: `euler_ancestral` を維持
-  * `scheduler`: `karras` を維持
-  * `denoise`: `1.0` を維持
+  * `steps`: `30` （維持）
+  * `cfg`: `6.5` （維持）
+  * `sampler_name`: `euler_ancestral`
+  * `scheduler`: `karras`
+  * `denoise`: `1.0`
 
-#### Step 4: 【別人化・首折れの完全阻止】Node 25 および Node 20 (`FaceDetailer`) の設定
-* **目的**: クロップ顔への元写真正面骨格の誤適用を排除し、インペイント強度を抑えて Base の顔立ちを維持したまま高精細化する。
+#### Step 4: 【前髪の発生を強力抑止】Node 6 `CLIPTextEncode` (Negative) の設定
+* **目的**: SDXL モデルがアニメ男子のデフォルトとして勝手に前髪を描いてしまうのを徹底的にブロックする。
+* **設定変更**:
+  * 既存のネガティブプロンプトの先頭に以下を追加:
+    ```text
+    bangs, fringe, long bangs, hair over eyes, hair over forehead, medium hair, long hair,
+    ```
+    *(※元々の lowres, bad anatomy 等の前にカンマ区切りで配置)*
+
+#### Step 5: 【別人化・首折れの完全阻止】Node 25 および Node 20 (`FaceDetailer`) の設定
 * **設定変更**:
   * **Node 25 (`ApplyInstantIDAdvanced` 2個目)**:
-    * `cn_strength`: `0.35` $\rightarrow$ **`0.0`** （★ControlNet 骨格拘束を完全ゼロ化）
-    * `ip_weight`: `0.60` $\rightarrow$ **`0.45`**
-    * `end_at`: `1.0` $\rightarrow$ **`0.70`**
+    * `cn_strength`: `0.0` （ControlNet 骨格拘束を完全ゼロ化）
+    * `ip_weight`: `0.45`
+    * `end_at`: `0.70〜1.0`
   * **Node 20 (`FaceDetailer`)**:
-    * `denoise`: `0.45` $\rightarrow$ **`0.26`** （★別人化を防ぎ元顔の目鼻立ち・眼鏡のみを鮮明化）
-    * `bbox_crop_factor`: `2.0` $\rightarrow$ **`1.4`** （首や肩を巻き込まず顔と前髪だけを精密処理）
-    * `feather`: `5` $\rightarrow$ **`10`** （境界のブレンド幅を広げて貼り付け感を排除）
-    * `steps`: `20` を維持
+    * `denoise`: `0.25` （元顔を壊さない上限値）
+    * `bbox_crop_factor`: `1.4` （首や肩を巻き込まず顔と前髪だけを精密処理）
+    * `feather`: `10`
+    * `steps`: `20`
 
-#### Step 5: 【外見属性の確実な抽出】Node 19 `WD14Tagger|pysssss` の設定
-* **目的**: 写真から「眼鏡（glasses）」や「髪型（short hair 等）」が漏れるのを防ぐ。
+#### Step 6: 【外見属性の確実な抽出】Node 19 `WD14Tagger|pysssss` の設定
+* **目的**: 写真から `buzz cut` や `short hair` などの髪型タグが閾値漏れするのを防ぎ、また表情タグ（smile）の誤遮断を解除する。
 * **設定変更**:
-  * `threshold`: `0.40` $\rightarrow$ **`0.30`** （感度を引き上げ、特徴タグを確実に抽出）
-  * `replace_underscore`: `true` を維持
-  * `trailing_comma`: `false` を維持
+  * `threshold`: `0.40` $\rightarrow$ **`0.25`** （感度を引き上げ、髪型タグを確実に抽出）
+  * `exclude_tags`: 文字列から **`smile, `** を削除（本人の穏やかな微笑みを活かす）
+  * `replace_underscore`: `true`
+  * `trailing_comma`: `false`
 
-#### Step 6: 生成実行と確認手順
+#### Step 7: 生成実行と確認手順
 1. 右上の **「Queue Prompt」** をクリックして生成を実行。
-2. **Node 26 (`PreviewImage`)**: Base 生成画像（FaceDetailer 適用前）の本人感・アニメ絵柄を確認。
-3. **Node 9 (`SaveImage`)**: FaceDetailer 適用後の完成画像を確認し、Base の顔立ちが壊れず瞳・眼鏡がクリアになっているかを確認。
+2. **Node 26 (`PreviewImage`)**: Base 生成画像で「額が露出した短髪・坊主頭になっているか」を確認。
+3. **Node 9 (`SaveImage`)**: FaceDetailer 適用後の完成画像で「眼鏡・瞳・目元が高精細化され、前髪が生えていないか」を確認。
 
 ---
 
@@ -253,19 +262,48 @@ Phase 3-A で確立した「本人同一性」を一切損なうことなく、*
 ### 実行履歴一覧
 | Run ID | 実施日時 | 主要設定 | Gate 3-A 判定 | 結果・所感・課題 |
 | :--- | :--- | :--- | :---: | :--- |
-| **RUN-3A-00** | 2026-10-11 | 添付JSON初期構成 (Base 20st, FD 0.45, 全身構図) | ❌ NG | 構図分散、FD による別人化・首折れ懸念あり |
-| **RUN-3A-01** | *(次回)* | 構図固定、ip 0.72、FD denoise 0.26、7分許容 28st | *(判定待ち)* | 第5章の手順を反映した第1回改善検証 |
+| **RUN-3A-00** | 2026-10-11 | 初期構成 (Base 20st, FD 0.45, 全身構図) | ❌ NG | 構図分散、FD による別人化・首折れ懸念 |
+| **RUN-3A-01** | 2026-10-12 | ポートレート固定、ip 0.70, cn 0.25, end 1.0, 30st, FD denoise 0.25, crop 1.4 | 🔺 改善・一部NG | 画質・眼鏡・目元は美麗化。しかし**髪型が全く不一致（短髪・坊主頭が前髪垂れ長髪化）** |
+| **RUN-3A-02** | *(次回)* | WD14 閾値 0.25、Negative に `bangs` 追加、髪型タグ (`buzz cut, forehead`) 補強 | *(判定待ち)* | 髪型不一致の解消と本人同一性確立トライ |
 
 ---
 
-### [次回記入欄: RUN-3A-01]
+### [記録: RUN-3A-01] ポートレート固定と低denoise FaceDetailer 評価
+* **実施日時**: 2026年10月12日
+* **入力写真**: `reWIN_20260204_20_46_41_Pro.jpg` (短髪・坊主頭、額全開、眼鏡、穏やかな微笑み)
+* **設定パラメータ**:
+  - Node 21: `masterpiece, best quality, very aesthetic, anime art style, solo, portrait, close-up face, upper body, looking at viewer, detailed facial features, sharp focus, simple background` ＋ WD14 出力
+  - Node 18: `ip_weight: 0.70`, `cn_strength: 0.25`, `end_at: 1.0`
+  - Node 2 (KSampler): `steps: 30`, `cfg: 6.5`, `euler_ancestral`, `karras`
+  - Node 25: `ip_weight: 0.45`, `cn_strength: 0.0`, `end_at: 1.0`
+  - Node 20 (FaceDetailer): `denoise: 0.25`, `bbox_crop_factor: 1.4`, `feather: 10`, `steps: 20`
+  - Node 19 (WD14 Tagger): `threshold: 0.40` ➔ 出力 tags: `black hair, 1boy, male focus, glasses, black eyes, rimless eyewear`
+* **Gate 3-A 判定結果**:
+  - [x] A-2 美麗アニメ品質: **合格（極めて美麗なセル画調、瞳のハイライト、ライティング良好）**
+  - [x] A-3 `solo` 遵守: **合格（1名のみ、コラージュ・分裂なし）**
+  - [x] A-4 別人化の非発生: **合格（FD denoise 0.25 により Base の顔立ちが破綻せず高精細化）**
+  - [ ] A-1 本人同一性: **不合格（致命的課題: 髪型が全く異なり、前髪の長い別人の髪型になっている。また表情が真顔・シリアス化）**
+* **根本原因分析**:
+  1. **InstantID の特性**: 顔認識モデル (InsightFace) は顔パーツ（目鼻口）のみを抽出し、**髪型の特徴量は持たない**。
+  2. **WD14 のタグ欠落**: 閾値 0.40 により `buzz cut` や `short hair` が漏れ、`black hair` のみ出力された。
+  3. **プロンプトとSDXLのバイアス**: 髪型指定がないため、SDXL が「アニメ男子の標準（前髪あり）」を勝手に描画した。
+  4. **ネガティブの不足**: ネガティブに `bangs`（前髪）が入っていないため、前髪の発生を抑制できなかった。
+
+---
+
+### [次回記入欄: RUN-3A-02] 髪型・額露出の是正検証
+* **対象フェーズ**: Phase 3-A
+* **対策方針**:
+  1. Node 19 (WD14 Tagger): `threshold: 0.25` に引き下げ、写真から `buzz cut` / `short hair` / `forehead` を確実に抽出。
+  2. Node 6 (Negative): **`bangs, fringe, long bangs, hair over eyes, medium hair, long hair`** を追加し前髪を強力に抑止。
+  3. Node 21 (`string_a`): **`buzz cut, very short hair, exposed forehead, gentle smile`** を明示補強。
 * **生成画像 (Node 9)**: 
-* **所要時間**: 
 * **Gate 3-A 判定**:
-  * [ ] A-1 本人同一性 (目鼻立ち・髪型・眼鏡の一致)
+  * [ ] A-1 本人同一性 (短髪・額露出・眼鏡・微笑みが一致しているか)
   * [ ] A-2 美麗アニメ品質 (セル画塗り・瞳のハイライト)
   * [ ] A-3 `solo` 遵守 (1名のみ、コラージュなし)
   * [ ] A-4 別人化の非発生 (Base の顔立ちが維持されている)
 * **評価メモ・気づき**: 
+ 
 
 
