@@ -188,6 +188,27 @@ Mage-Flow の脱落を受け、元々の本命であるアニメ特化モデル�
    * **解決策 2**: Node 21 (`string_a`) に `buzz cut, very short hair, exposed forehead, gentle smile` を明示補強。
    * **解決策 3**: Node 19 (WD14 Tagger) の `threshold: 0.25` に引き下げ、`exclude_tags` から `smile` を除去。
 
+---
+
+### 【第12期】FaceDetailer 前後無変化の懸念点分析と改訂ワークフロー（261014）の作成
+ユーザーより「設定値関係なく、FaceDetailer を通した前後で顔の印象に変化が見られない」との課題指摘を受け、ワークフローの構造・パラメータを再精査。懸念点の特定と改訂ワークフローの配置を実施。
+
+1. **特定された懸念点（前後で差が出ない原因）**:
+   * **プロンプト入力の曖昧さ**: 顔用インペイントに大元の全身プロンプトが渡されており、`wildcard` も空欄で顔専用の修復指示がなかった。
+   * **FaceDetailer 用 InstantID 強度不足**: Node 25 の `ip_weight: 0.45`, `cn_strength: 0` であり、元写真の特徴量を引き寄せる力が弱かった。
+   * **ガイドサイズの不適合**: アップ構図（顔領域約800〜900px）に対し `guide_size: 768` で縮小インペイントされていた。
+   * **SAM モデルの未接続**: 矩形 bbox に単純 feather のみで、顔パーツのセグメンテーションによる精緻なインペイントが行われていなかった。
+2. **改訂ワークフローの作成**:
+   * 保存先: `C:\pinokio\api\comfy.git\app\user\default\workflows\StoryWeaver_261014.json`
+   * 主な改訂内容:
+     * Node 6 (Negative): 前髪抑止タグ（`bangs, fringe, long bangs, hair over eyes, hair over forehead, medium hair`）を追加。
+     * Node 21 (Positive string_a): 短髪・額露出・微笑み（`buzz cut, very short hair, exposed forehead, gentle smile`）を追加。
+     * Node 19 (WD14): `threshold: 0.25` に調整、`exclude_tags` から `smile` を除外。
+     * Node 25 (FaceDetailer InstantID): `ip_weight: 0.65`, `cn_strength: 0.15` に強化。
+     * Node 20 (FaceDetailer): `guide_size: 1024`, `denoise: 0.35`, `wildcard` に顔ディテール指定を追加。
+     * Node 9 (SaveImage): `filename_prefix: "StoryWeaver_261014"` に設定。
+
+
 
 
 
