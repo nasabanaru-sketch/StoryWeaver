@@ -208,6 +208,21 @@ Mage-Flow の脱落を受け、元々の本命であるアニメ特化モデル�
      * Node 20 (FaceDetailer): `guide_size: 1024`, `denoise: 0.35`, `wildcard` に顔ディテール指定を追加。
      * Node 9 (SaveImage): `filename_prefix: "StoryWeaver_261014"` に設定。
 
+---
+
+### 【第13期】全体計画の再構築（v6.2：来場者フロー連動・非同期2段階パイプライン）
+旧 Phase 3（ComfyUI 単体での本人同一性確立）の検証が収束しないため、ユーザー提示の見直し計画（`Attached_doc/gemini-code-1792190494455.md`）に基づき全体計画を再構築。
+
+1. **主な方針転換**:
+   * WD14 Tagger を廃止し、`gemma4:e2b` + JSON Schema による外見構造化抽出と前髪逆バイアス Negative の自動生成へ移行。
+   * InstantID に IP-Adapter Plus Face を併用。InsightFace と SenseVoice は CPU 固定で VRAM 競合を排除。
+   * セリフ・構図は台本プリセット化。表情は写真から抽出せず、音声感情 × ピーク声量（rms_p90）のみで決定。
+   * API を `/api/analyze_face`（撮影時）と `/api/generate_scene`（発声後）の2段階に分割。
+2. **新フェーズ体系**: Phase 1（VLM・SenseVoice 単体検証）→ 2（ComfyUI 改修）→ 3（FastAPI）→ 4（UI）→ 5（リハーサル）。
+3. **ドキュメント**: `docs/plans/README.md` を v6.2 正本として全面改訂。`phase3_revision_plan.md` はアーカイブ化（削除せず保全）。新規ファイルは作成していない。
+4. **資産確認**: IP-Adapter Plus Face / CLIP-ViT-H / SAM / `gemma4:e2b` は導入済み。SenseVoiceSmall のみ Phase 1-B で導入確認が必要。
+5. **仕様変更根拠**: Base の InstantID `ip_weight` を仕様書の 0.55〜0.60 から 0.70 へ変更（`cn_strength: 0.15` で骨格拘束を外す分、顔特徴の担保を IP 側に寄せるため）。
+
 
 
 

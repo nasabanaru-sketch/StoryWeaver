@@ -1,3 +1,7 @@
+> [!WARNING]
+> **【アーカイブ】2026-10-17**: 本書は全体計画 v6.2 の再構築により **廃止（参照専用）** となりました。
+> 現行計画は [README.md](file:///c:/antigravity/StoryWeaver/docs/plans/README.md) を参照してください。RUN-3A 系の検証記録は経緯資料として保全します。
+
 # StoryWeaver Live Phase 3 実装検証計画書
 ## （本人同一性 ➔ ストーリー動的演出 ➔ 生成時間短縮：3大フェーズ検証仕様）
 
