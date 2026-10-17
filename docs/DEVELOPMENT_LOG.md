@@ -223,6 +223,17 @@ Mage-Flow の脱落を受け、元々の本命であるアニメ特化モデル�
 4. **資産確認**: IP-Adapter Plus Face / CLIP-ViT-H / SAM / `gemma4:e2b` は導入済み。SenseVoiceSmall のみ Phase 1-B で導入確認が必要。
 5. **仕様変更根拠**: Base の InstantID `ip_weight` を仕様書の 0.55〜0.60 から 0.70 へ変更（`cn_strength: 0.15` で骨格拘束を外す分、顔特徴の担保を IP 側に寄せるため）。
 
+---
+
+### 【第14期】全体計画 v6.3：手戻り・展示トラブル防止の5点改訂
+ユーザー指示により `docs/plans/README.md` を以下の通り改訂。
+
+1. **2人目以降の VRAM 溢れ対策**: `/api/analyze_face` で Ollama 呼び出し直前に ComfyUI `POST /free` を実行（効かない場合は起動オプションによる保持制御を Phase 3 で検証）。Gate 3・Gate 5 に「生成直後の2回目 analyze でも VRAM ≤ 14.5 GB」を追加。
+2. **録音設定と音声フォーマット統一**: `autoGainControl / noiseSuppression / echoCancellation` をすべて `false`（環境音は指向性マイクと閾値で制御）。音声は **ブラウザ `AudioContext` で 16kHz モノラル WAV にエンコードして送信** に統一（ffmpeg 依存排除・opus による rms 歪み回避のため）。
+3. **時間短縮の前倒し**: Phase 2 を「前半: 画質確立 → 後半: 時間短縮確定」の2段階にし、Gate 2 に目標生成時間の確定を追加。Phase 5 は確定設定での連続耐久に専念。
+4. **FaceDetailer 最適化**: `Node_Pos_FD` に髪型・眼鏡タグを除いた表情専念版（案B）を追加し優先検証。マスクは SAM なし・bbox のみを優先検証。
+5. **撮影ガイドと再撮影ガード**: 頭・肩ガイド枠のオーバーレイ表示、VLM スキーマに `face_detected` を追加し、未検出時は `422 FACE_NOT_DETECTED` で撮影画面へ戻す。Gate 1-A / 3 / 4 に反映。
+
 
 
 

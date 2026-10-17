@@ -1,6 +1,6 @@
-# StoryWeaver Live — 全体実装計画書 (v6.2)
+# StoryWeaver Live — 全体実装計画書 (v6.3)
 
-- **改訂日**: 2026-10-17
+- **改訂日**: 2026-10-17（v6.3: 手戻り・展示トラブル防止の5点を反映）
 - **ステータス**: 全体計画 再構築済み（各 Phase の詳細手順は着手時に本書へ追記）
 - **対象イベント**: AIクリエーターズマーケット
 - **対象マシン**: ThinkPad X1 Extreme (RTX 3080 Laptop 16GB / RAM 32GB / Windows 11)
@@ -38,11 +38,16 @@
 
 | コンポーネント | 実行先 | 役割 |
 | :--- | :--- | :--- |
-| フロントエンド UI | ブラウザ | シーン選択・撮影・台本表示・録音（`autoGainControl: false`, 16kHz WAV）・アートカード表示/印刷 |
+| フロントエンド UI | ブラウザ | シーン選択・撮影（頭・肩ガイド枠オーバーレイ／顔未検出時の再撮影）・台本表示・録音（AGC/NS/EC すべて無効）・アートカード表示/印刷 |
 | FastAPI (`server.py`) | CPU | `/api/analyze_face` と `/api/generate_scene` の2段階 API、セッション管理、プロンプト統合 |
 | Ollama `gemma4:e2b` | GPU（撮影直後のみ） | 顔写真の外見 JSON 抽出。完了後 `keep_alive: 0` で即解放 |
 | SenseVoiceSmall | **CPU 固定** | 感情ラベル抽出（VRAM 0 MB） |
 | ComfyUI | GPU | Animagine XL 3.1 FP8 + InstantID（InsightFace は **CPU**）+ IP-Adapter Plus Face + FaceDetailer |
+
+### 音声データ受け渡し仕様（全 Phase 共通・統一）
+
+- **ブラウザ側で `AudioContext`（`sampleRate: 16000`）を用いて 16kHz モノラル WAV（16bit PCM）にエンコードしてから送信する**。FastAPI は WAV のみを受け付ける。
+- 採用理由: `MediaRecorder` は WAV 直接出力に非対応のため自前エンコードが必要。サーバ側の ffmpeg 依存とデコード工程を排除でき、非可逆圧縮（opus）による `rms_p90` の歪みも避けられる。
 
 ### 来場者フローと裏処理
 
@@ -57,13 +62,17 @@ sequenceDiagram
     participant Comfy as ComfyUI (GPU)
 
     User->>UI: 1. シーン（台本）選択
-    User->>UI: 2. 顔写真撮影
+    User->>UI: 2. ガイド枠に頭・肩を合わせて撮影
     UI->>API: POST /api/analyze_face
     UI->>User: 「台本を読んで準備してください」
+    API->>Comfy: POST /free（キャッシュ解放）
     API->>VLM: JSON Schema で外見抽出 (keep_alive:0)
-    VLM-->>API: 外見 JSON（直後に VRAM 解放）
+    VLM-->>API: 外見 JSON（face_detected 含む／直後に VRAM 解放）
+    alt face_detected == false
+        API-->>UI: 顔未検出エラー → 撮影画面へ戻し再撮影
+    end
     API->>API: 逆バイアス Negative を自動生成
-    User->>UI: 3. セリフ発声（録音）
+    User->>UI: 3. セリフ発声（録音 → 16kHz WAV）
     UI->>API: POST /api/generate_scene
     API->>ASR: 感情ラベル + ピーク声量 (rms_p90)
     API->>API: 4. プロンプト統合（性別→外見→表情→シーン→品質）
@@ -103,23 +112,29 @@ sequenceDiagram
 | :--- | :--- |
 | `Node_Pos_Base` | `{gender_tag}, solo, {physical_traits}, {expression_prompt}, {scene_prompt}, masterpiece, best quality, very aesthetic, absurdres` |
 | `Node_Neg_Base` | `{negative_hair_bias}, nsfw, lowres, (bad), text, error, fewer, extra, missing, worst quality, jpeg artifacts, low quality, watermark, unfinished, displeasing, oldest, early, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract], photorealistic, realistic, 3d` |
-| `Node_Pos_FD` | `{gender_tag}, solo, close-up, face focus, {physical_traits}, {expression_prompt}, detailed anime eyes, masterpiece, best quality, very aesthetic, absurdres`（`{scene_prompt}` は除外） |
+| `Node_Pos_FD`（案A: 原案） | `{gender_tag}, solo, close-up, face focus, {physical_traits}, {expression_prompt}, detailed anime eyes, masterpiece, best quality, very aesthetic, absurdres`（`{scene_prompt}` は除外） |
+| `Node_Pos_FD`（案B: 表情専念・**優先検証**） | `{gender_tag}, solo, close-up, face focus, {expression_prompt}, detailed anime eyes, masterpiece, best quality, very aesthetic, absurdres`（`{physical_traits}` の髪型・眼鏡タグを除外） |
 
 - `{negative_hair_bias}`: 前髪なし判定時に `(bangs:1.3), (fringe:1.3), hair over forehead` を自動挿入。
+- **FD プロンプトの注記**: FaceDetailer は `bbox_crop_factor: 1.4` の狭いクロップを `denoise: 0.25〜0.28` で再描画するため、頭髪・眼鏡は Base 生成結果がほぼ維持される。ここで `buzz cut` / `glasses` 等を再注入すると、クロップ境界での不自然な生え際や二重フレームを招く恐れがあるため、**案B（表情専念）を優先検証** し、Phase 2 で A/B を比較して採否を確定する。
 - 最終的な順序・重みは Phase 2 Gate で確定する。
 
 ### 3.4 VRAM 配分（上限 14.5 GB 厳守）
 
 | タイミング | 内訳 | ピーク |
 | :--- | :--- | :--- |
-| 撮影直後（VLM 実行） | OS 1.5 + Ollama 3.5（完了後 0 へ）+ ComfyUI 待機 6.0 | 約 11.0 GB |
+| 撮影直後（VLM 実行） | OS 1.5 + Ollama 3.5（完了後 0 へ）+ ComfyUI 待機 6.0（`/free` 実行後） | 約 11.0 GB |
 | 発声後（画像生成） | OS 1.5 + SenseVoice 0（CPU）+ InsightFace 0（CPU）+ Ollama 0 + ComfyUI 11.0 | 約 12.5 GB |
+
+> [!WARNING]
+> **2人目以降のキャッシュ残留対策**: ComfyUI は生成完了後もモデル群を VRAM にキャッシュし続けるため、2人目の撮影時に待機 VRAM が 6.0 GB に戻らず（約 11 GB 占有）、Ollama ロードで 14.5 GB を超過する恐れがある。
+> このため `/api/analyze_face` では **Ollama 呼び出し直前に ComfyUI の `POST /free`（`{"unload_models": true, "free_memory": true}`）を呼び出し**、`nvidia-smi` 等で待機 VRAM が規定値以下に下がったことを確認してから Ollama を呼ぶ。`/free` が効かない場合の代替として ComfyUI 起動オプション（`--disable-smart-memory` 等）による VRAM 保持制御を Phase 3 で検証する。
 
 ### 3.5 時間制約
 
 - 画質・本人同一性の確立までは **生成時間 最大 7 分（420 秒）許容**、ComfyUI 待機タイムアウト 500 秒（[AGENTS.md](file:///c:/antigravity/StoryWeaver/AGENTS.md) 準拠）。
 - Ollama 通信タイムアウト 30 秒。SenseVoice 推論 0.5 秒以内。
-- 時間短縮は Phase 5（リハーサル）で画質非劣化を条件に実施する。
+- **時間短縮は Phase 2 後半で実施・確定する**（前倒し）。画質・本人同一性を確立した直後に、画質が劣化しない最小ステップ数・サンプラー設定を同じ重みバランスのまま検証し、展示運用の目標生成時間を確定する。Phase 5 では確定設定を変更しない。
 
 ---
 
@@ -132,7 +147,7 @@ sequenceDiagram
 | Checkpoint | ✅ `animagine-xl-3.1.float8_e4m3fn.safetensors` |
 | InstantID | ✅ `ip-adapter.bin` / ControlNet `diffusion_pytorch_model.safetensors` / `antelopev2` |
 | IP-Adapter Plus Face | ✅ `ip-adapter-plus-face_sdxl_vit-h.safetensors` + `CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors` |
-| FaceDetailer | ✅ `face_yolov8m.pt` / SAM `sam_vit_b_01ec64.pth` |
+| FaceDetailer | ✅ `face_yolov8m.pt` / SAM `sam_vit_b_01ec64.pth`（**SAM なし・bbox＋`feather: 10` 構成を優先検証**。SAM は追加 VRAM を消費するため、bbox のみで合成が不自然な場合に限り採用） |
 | SenseVoiceSmall | ☐ Phase 1-B で導入・CPU 動作確認 |
 | 既存ワークフロー | `StoryWeaver(update).json`, `StoryWeaver_261014.json`（Phase 2 の改修元） |
 
@@ -143,17 +158,17 @@ sequenceDiagram
 ```mermaid
 graph LR
     P1["Phase 1<br/>VLM外見抽出 ＆<br/>SenseVoice 単体検証"] --> G1{{"Gate 1-A / 1-B"}}
-    G1 --> P2["Phase 2<br/>ComfyUI 改修<br/>WD14撤去・CPU化・IP-Adapter"] --> G2{{"Gate 2"}}
+    G1 --> P2["Phase 2<br/>ComfyUI 改修<br/>画質確立 → 時間短縮確定"] --> G2{{"Gate 2"}}
     G2 --> P3["Phase 3<br/>FastAPI 2段階API"] --> G3{{"Gate 3"}}
     G3 --> P4["Phase 4<br/>展示UI 5ステップ"] --> G4{{"Gate 4"}}
-    G4 --> P5["Phase 5<br/>リハーサル・耐久"] --> G5{{"Gate 5"}}
+    G4 --> P5["Phase 5<br/>確定設定での連続耐久"] --> G5{{"Gate 5"}}
 ```
 
 ### Phase 1: VLM 外見抽出 ＆ SenseVoice 感情・音量の単体検証
 
 **1-A: `gemma4:e2b` による JSON Schema 外見抽出**（`verify_step1_vlm.py`）
 - `keep_alive=0` + Pydantic JSON Schema `format` 指定。
-- スキーマ: `gender_tag`(1boy/1girl) / `hair_length`(buzz cut〜long hair, bald) / `hair_style_details` / `has_bangs` / `exposed_forehead` / `glasses` / `facial_hair`。**表情フィールドは持たない**。
+- スキーマ: `face_detected`(bool) / `gender_tag`(1boy/1girl) / `hair_length`(buzz cut〜long hair, bald) / `hair_style_details` / `has_bangs` / `exposed_forehead` / `glasses` / `facial_hair`。**表情フィールドは持たない**。`face_detected` は Phase 3 の再撮影ガードに使用。
 - ルール変換: `has_bangs==False` または `exposed_forehead==True` → `exposed forehead` 付与 + `negative_hair_bias` セット。
 - `load_duration` / `eval_duration` / 壁時計 / VRAM 解放後使用量を `vlm_benchmark.csv` に記録。
 
@@ -164,11 +179,13 @@ graph LR
 | 3 | 前髪あり | `has_bangs: true` かつ `negative_hair_bias` 空 | ☐ |
 | 4 | 表情排除 | `physical_traits` に表情語が含まれない | ☐ |
 | 5 | 計測記録 | ロード・推論時間・解放後 VRAM がログに残る | ☐ |
+| 6 | 顔未検出判定 | 顔が隠れた／写っていない画像で `face_detected: false` となる | ☐ |
 
 **1-B: SenseVoice 感情認識・ピーク音量 ＆ CPU 動作**（`verify_step1_sensevoice.py`）
 - `AutoModel(model="iic/SenseVoiceSmall", device="cpu")`。
 - 20ms フレーム RMS → 無音除外 → 90 パーセンタイル dBFS を算出し閾値判定。
-- WAV / webm(opus) 入力でデコードエラーなし。
+- 入力は共通仕様どおり **16kHz モノラル WAV（16bit PCM）** に統一し、ブラウザ `AudioContext` 出力相当の WAV でデコードエラーがないことを確認する。
+- 録音条件はブラウザ側 `autoGainControl / noiseSuppression / echoCancellation` すべて `false` 相当（叫び声のピークが減衰しない生音）で評価する。
 
 | # | Gate 1-B | 基準 | 合否 |
 | :-: | :--- | :--- | :-: |
@@ -186,7 +203,11 @@ graph LR
 | IP-Adapter Plus Face (SDXL) | `weight: 0.35〜0.40`, `end_at: 0.70` |
 | ApplyInstantIDAdvanced（Base） | `ip_weight: 0.70`, `cn_strength: 0.15`, `end_at: 0.85` |
 | CLIPTextEncode | `Node_Pos_Base` / `Node_Neg_Base` / `Node_Pos_FD` の 3 系統 |
-| FaceDetailer | `denoise: 0.25〜0.28`, `bbox_crop_factor: 1.4`, `feather: 10`／FD 側 InstantID `ip_weight: 0.45`, `cn_strength: 0.0` |
+| FaceDetailer | `denoise: 0.25〜0.28`, `bbox_crop_factor: 1.4`, `feather: 10`／FD 側 InstantID `ip_weight: 0.45`, `cn_strength: 0.0`／マスクは **SAM 未接続・`face_yolov8m.pt` bbox のみを優先検証**（VRAM 節約と自然な合成の両立）／プロンプトは 3.3 の案A/案B を比較 |
+
+**Phase 2 の進め方（2段階）**
+1. **前半: 画質・本人同一性の確立**（最大 7 分許容）— 重み・テンプレート・FD 構成（案A/B、SAM 有無）を確定。
+2. **後半: 生成時間短縮の確定**（前倒し）— 前半の重みバランスを固定したまま、ステップ数・サンプラー・スケジューラ・FD steps を段階的に削減し、画質・本人同一性が劣化しない最小設定と目標生成時間を確定する。劣化が出た場合はその一段手前を採用する。
 
 > [!NOTE]
 > **仕様書からの変更根拠**: `storyweaver_live.md` の InstantID 重み `0.55〜0.60` を Base で `0.70` に引き上げる。IP-Adapter Plus Face で頭部を補助しつつ `cn_strength: 0.15` で骨格拘束を外すため、顔特徴の担保を IP 側に寄せる必要があるため。Lightning 4-step は画質確立まで不採用（[AGENTS.md](file:///c:/antigravity/StoryWeaver/AGENTS.md) §3②）。
@@ -195,34 +216,42 @@ graph LR
 | :-: | :--- | :--- | :-: |
 | 1 | 手動修正ゼロの両立 | Phase 1 の自動タグのみで、髪型・眼鏡・顔立ち／動的ポーズ／指定表情が両立 | ☐ |
 | 2 | VRAM | 生成中ピーク ≤ 13.0 GB、InsightFace による増分なし | ☐ |
-| 3 | テンプレート確定 | プロンプト順序・重みを確定し本書 3.3 を更新 | ☐ |
+| 3 | テンプレート確定 | プロンプト順序・重みを確定し本書 3.3 を更新（FD 案A/B・SAM 有無の採否を含む） | ☐ |
+| 4 | 時間と画質の両立 | 展示運用で許容できる生成時間（目標秒数）と画質・本人同一性の両立設定を確定し、本書 3.5 に記録 | ☐ |
 
 ### Phase 3: FastAPI 2 段階エンドポイント（`server.py`）
 
 | API | 入力 | 処理 | 出力 |
 | :--- | :--- | :--- | :--- |
-| `POST /api/analyze_face` | `face_image` | ComfyUI `input` へ配置 → VLM 抽出（`keep_alive:0`）→ 逆バイアス生成 → 計測ログ | `session_id, image_filename, gender_tag, physical_traits, negative_hair_bias, vlm_metrics` |
-| `POST /api/generate_scene` | `audio_file, scene_id, session_id` | analyze 実行中なら `await` → SenseVoice + 音量 → プリセット取得 → プロンプト統合 → ComfyUI 送信 → PNG 保存（`outputs/cards/`） | `imageBase64, emotion, rms_db, script_text, final_prompt` |
+| `POST /api/analyze_face` | `face_image` | ComfyUI `input` へ配置 → **ComfyUI `POST /free` でキャッシュ解放・待機 VRAM 確認** → VLM 抽出（`keep_alive:0`）→ **`face_detected == false` なら `422 FACE_NOT_DETECTED` を返却し一時画像を破棄** → 逆バイアス生成 → 計測ログ | `session_id, image_filename, face_detected, gender_tag, physical_traits, negative_hair_bias, vlm_metrics` |
+| `POST /api/generate_scene` | `audio_file`（**16kHz モノラル WAV のみ**。それ以外は 415 エラー）, `scene_id, session_id` | analyze 実行中なら `await` → SenseVoice + 音量 → プリセット取得 → プロンプト統合 → ComfyUI 送信 → PNG 保存（`outputs/cards/`） | `imageBase64, emotion, rms_db, script_text, final_prompt` |
 
 | # | Gate 3 | 基準 | 合否 |
 | :-: | :--- | :--- | :-: |
 | 1 | 正常系 | 2 API が連続で正常応答し画像が返る | ☐ |
 | 2 | 競合安全 | analyze 完了前の generate でも待機して正常完了 | ☐ |
-| 3 | 異常系 | Ollama/ComfyUI 停止・タイムアウト時に明示エラー、ハングなし | ☐ |
+| 3 | 異常系 | Ollama/ComfyUI 停止・タイムアウト時に明示エラー、ハングなし。**顔未検出画像で `FACE_NOT_DETECTED` が返り、セッションが生成に進まない** | ☐ |
 | 4 | 後始末 | 顔画像・音声の一時ファイルがリークしない | ☐ |
+| 5 | 2人目 VRAM | 1回目の画像生成完了直後に2回目の `/api/analyze_face` を実行しても VRAM ピーク ≤ 14.5 GB | ☐ |
 
 ### Phase 4: 展示用フロントエンド（5 ステップ・ウィザード）
 
 1. シーン選択（スタッフ用に音量閾値のリアルタイム調整）
-2. カメラ撮影 → 裏で `/api/analyze_face` 非同期送信、即画面遷移
-3. 台本表示 ＆ 録音（`autoGainControl: false, noiseSuppression: true, echoCancellation: true`、16kHz モノラル WAV）
+2. カメラ撮影
+   - ライブプレビュー上に **頭と肩のガイド枠（シルエット／ターゲットフレーム）をオーバーレイ表示** し、「枠に頭と肩を合わせて撮影してください」と案内。顔が画面中央に適切なサイズで収まるよう誘導する（背後の通行人の映り込み・フレームアウト・距離ばらつきの防止）。
+   - 撮影後、裏で `/api/analyze_face` を非同期送信し画面3へ遷移。**`FACE_NOT_DETECTED` が返った場合は画面3（または録音開始前）から撮影画面へ戻し、再撮影を促すメッセージを表示**する（録音・生成には進ませない）。
+3. 台本表示 ＆ 録音
+   - `getUserMedia({ audio: { autoGainControl: false, noiseSuppression: false, echoCancellation: false } })`。ブラウザのノイズ抑制は突発的な叫び声を減衰させ `rms_p90` を下げるため無効化する。**環境音対策は指向性マイクと `BURNING_DB_THRESHOLD` で制御** する。
+   - 録音データは `AudioContext`（16kHz）で **モノラル WAV（16bit PCM）にエンコードして送信**（共通仕様）。
 4. 生成中演出（感情エネルギー表示）
 5. 完成アートカード表示（台本・ロゴ合成）＋ PNG 保存・印刷
 
 | # | Gate 4 | 基準 | 合否 |
 | :-: | :--- | :--- | :-: |
 | 1 | E2E | ブラウザから 5 ステップ通しで生成・表示・保存成功 | ☐ |
-| 2 | 録音品質 | AGC 無効で声量差が `rms_db` に反映される | ☐ |
+| 2 | 録音品質 | AGC/NS/EC 無効で叫び声と通常発声の声量差が `rms_db` に反映され、BURNING 昇格が機能する | ☐ |
+| 3 | 撮影ガイド | ガイド枠が表示され、枠に合わせた撮影で顔が中央・適切サイズに収まる | ☐ |
+| 4 | 再撮影ガード | 顔を隠して撮影すると撮影画面に戻り、再撮影案内が表示される | ☐ |
 
 ### Phase 5: 展示本番リハーサル・耐久テスト
 
@@ -230,8 +259,9 @@ graph LR
 | :-: | :--- | :--- | :-: |
 | 1 | 多様性 | 短髪男性・長髪女性・眼鏡有無など 5 パターン以上で本人性 OK | ☐ |
 | 2 | 会場音 | 環境音下で閾値キャリブレーション完了 | ☐ |
-| 3 | 耐久 | 10 回連続でロード時間推移を記録、VRAM ≤ 14.5 GB、OOM ゼロ | ☐ |
-| 4 | 時間短縮 | 画質非劣化の範囲で生成時間を短縮し、運用上限を確定 | ☐ |
+| 3 | 耐久 | Gate 2 確定設定のまま 10 回連続でロード時間推移を記録、VRAM ≤ 14.5 GB、OOM ゼロ | ☐ |
+| 4 | 2人目以降 VRAM | 各回の生成完了直後の `/api/analyze_face` でも VRAM ピーク ≤ 14.5 GB を維持 | ☐ |
+| 5 | 生成時間 | Gate 2 で確定した目標生成時間を連続運用でも維持（設定変更はしない） | ☐ |
 
 ---
 
