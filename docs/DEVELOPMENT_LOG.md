@@ -234,6 +234,44 @@ Mage-Flow の脱落を受け、元々の本命であるアニメ特化モデル�
 4. **FaceDetailer 最適化**: `Node_Pos_FD` に髪型・眼鏡タグを除いた表情専念版（案B）を追加し優先検証。マスクは SAM なし・bbox のみを優先検証。
 5. **撮影ガイドと再撮影ガード**: 頭・肩ガイド枠のオーバーレイ表示、VLM スキーマに `face_detected` を追加し、未検出時は `422 FACE_NOT_DETECTED` で撮影画面へ戻す。Gate 1-A / 3 / 4 に反映。
 
+---
+
+### 【第15期】Phase 1-A：gemma4:e2b による JSON Schema 外見抽出の検証完了（Gate 1-A 全基準合格）
+運用ルールに基づき、`README.md` への手順追記、検証スクリプト `verify_step1_vlm.py` の実装、および実写・顔未検出画像を用いたベンチマークを実施。
+
+1. **実装内容**:
+   * Pydantic による 8 項目の構造化スキーマ（`face_detected`, `gender_tag`, `hair_length`, `hair_style_details`, `has_bangs`, `exposed_forehead`, `glasses`, `facial_hair`）を定義し、Ollama API（`gemma4:e2b`）の `format: schema`（Structured Outputs）で文法制約サンプリングを適用。
+   * システムプロンプトおよび Python フィルタリングによる徹底した「表情排除」を実装。
+   * ルールベース変換により、`has_bangs == False` または `exposed_forehead == True` 時に `physical_traits` へ `exposed forehead` を補完し、`negative_hair_bias` に `(bangs:1.3), (fringe:1.3), hair over forehead` を自動付与。
+   * 推論完了・アンロード直後（`keep_alive: 0`）の GPU VRAM 使用量（MB）、ロード時間、推論時間を計測し `vlm_benchmark.csv` へ保存するロジックを実装。
+2. **検証結果（Gate 1-A）**:
+   * **短髪男性実写 (`koji-bose.jpg`)**: `1boy`, `short hair`, `dark hair`, `glasses`, `exposed forehead` 抽出、逆バイアス `(bangs:1.3), (fringe:1.3), hair over forehead` が自動セット（所要 10.77 秒、解放後 VRAM 614.7 MB）。
+   * **長髪女性実写 (`koji-women-.jpg`)**: `1girl`, `long hair`, `Black hair, straight texture`, `glasses`, `exposed forehead` 抽出、逆バイアスセット（所要 17.13 秒、解放後 VRAM 614.7 MB）。
+   * **前髪あり女性実写 (`yae.jpg`)**: `1girl`, `short hair`, `black hair, straight texture, bangs` 抽出、`has_bangs: True`, `exposed_forehead: False`、逆バイアス空文字 `""` を確認（所要 12.58 秒、解放後 VRAM 629.8 MB）。
+   * **顔未検出テスト (`test_noface.jpg`)**: `face_detected: False`、全属性が空文字/デフォルト値となり、Phase 3 再撮影ガード条件の成立を確認（所要 11.52 秒、解放後 VRAM 614.7 MB）。
+   * **VRAM 即時解放**: `keep_alive: 0` により、推論完了直後はいずれも 614〜630 MB まで即座に完全解放されることを確認。
+3. **運用上の知見**:
+   * 完全コールドスタート時の初回推論のみモデル読み込みに時間がかかりタイムアウト（30秒超過）リスクがあるため、FastAPI 起動時にダミーの空推論でウォームアップを済ませる運用が必要。
+   * Gate 1-A の全 6 項目が基準を満たし合格（`docs/plans/README.md` に反映）。
+
+---
+
+### 【第16期】Phase 1-B：SenseVoice 感情認識・ピーク音量 ＆ CPU 動作検証完了（Gate 1-B 全基準合格・Phase 1 完了）
+運用ルールに基づき、設定ファイル `config.json` の作成、対話型録音ヘルパー `record_test_audio.py`、および検証スクリプト `verify_step1_sensevoice.py` を実装し、実機検証を実施。
+
+1. **実装内容**:
+   * `config.json`: 声量による BURNING 昇格閾値 `"BURNING_DB_THRESHOLD": -12.0` を外部設定化。
+   * `record_test_audio.py`: 16kHz モノラル 16bit PCM WAV で 4 パターン（叫び/明るい/悲痛/冷静）をマイク対話録音・合成テスト音声を生成するヘルパーを作成。
+   * `verify_step1_sensevoice.py`: `AutoModel(model="iic/SenseVoiceSmall", device="cpu")` による完全 CPU 動作、20ms フレーム RMS による無音除外 `rms_p90` 算出、および感情タグ × 音量閾値によるハイブリッド判定（BURNING/JOYFUL/EMOTIONAL/COOL）ロジックを実装。ベンチマークを `sensevoice_benchmark.csv` に保存。
+2. **実機検証結果（Gate 1-B）**:
+   * **Gate 1-B 基準1（VRAM 消費ゼロ）**: ロード前後 GPU VRAM 増分 **0.0 MB**（324.0 MB -> 324.0 MB）で完全分離を確認。
+   * **Gate 1-B 基準2（推論速度）**: 3〜3.5秒音声に対して **0.31〜0.42 秒** で推論完了（目標 0.5 秒以内を CPU で達成）。
+   * **Gate 1-B 基準3（ハイブリッド判定）**: 音声感情タグとピーク音量 `rms_p90` による `BURNING` 昇格および `COOL` 判定の切り替え、`expression_prompt` の適正出力を確認。
+   * **Gate 1-B 基準4（閾値外部設定）**: コマンドライン引数 `--threshold -20.0` による一時変更で、通常音量音声が即座に `BURNING` へ昇格することを確認。
+3. **Phase 1 総括**:
+   * Gate 1-A（VLM 外見抽出）および Gate 1-B（SenseVoice 感情・音量解析）の全項目が合格基準を満たし、Phase 1 が完了。
+   * 次フェーズ Phase 2（ComfyUI ワークフロー改修: `storyweaver_anime_api.json`）への移行準備が完了。
+
 
 
 

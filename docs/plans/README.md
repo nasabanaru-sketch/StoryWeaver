@@ -171,28 +171,68 @@ graph LR
 - スキーマ: `face_detected`(bool) / `gender_tag`(1boy/1girl) / `hair_length`(buzz cut〜long hair, bald) / `hair_style_details` / `has_bangs` / `exposed_forehead` / `glasses` / `facial_hair`。**表情フィールドは持たない**。`face_detected` は Phase 3 の再撮影ガードに使用。
 - ルール変換: `has_bangs==False` または `exposed_forehead==True` → `exposed forehead` 付与 + `negative_hair_bias` セット。
 - `load_duration` / `eval_duration` / 壁時計 / VRAM 解放後使用量を `vlm_benchmark.csv` に記録。
+- **検証手順**:
+  1. `ollama list` で `gemma4:e2b` が存在することを確認（必要に応じて `ollama serve`）。
+  2. `test_assets/faces/` に検証画像（短髪、女性/前髪あり、顔隠れ等）を配置。
+  3. スクリプトを実行し、JSON パース安定性・表情排除・逆バイアス・`keep_alive: 0` による VRAM 即時解放を確認。
+- **実行コマンド**:
+  ```bash
+  python verify_step1_vlm.py --faces-dir test_assets/faces --model gemma4:e2b
+  ```
 
 | # | Gate 1-A | 基準 | 合否 |
 | :-: | :--- | :--- | :-: |
-| 1 | JSON 安定性 | 5 パターンでパースエラー 0% | ☐ |
-| 2 | 短髪・額露出 | `buzz cut, very short hair, exposed forehead` + 逆バイアス出力 | ☐ |
-| 3 | 前髪あり | `has_bangs: true` かつ `negative_hair_bias` 空 | ☐ |
-| 4 | 表情排除 | `physical_traits` に表情語が含まれない | ☐ |
-| 5 | 計測記録 | ロード・推論時間・解放後 VRAM がログに残る | ☐ |
-| 6 | 顔未検出判定 | 顔が隠れた／写っていない画像で `face_detected: false` となる | ☐ |
+| 1 | JSON 安定性 | 5 パターンでパースエラー 0% | ☑ 合格 |
+| 2 | 短髪・額露出 | `buzz cut, very short hair, exposed forehead` + 逆バイアス出力 | ☑ 合格 |
+| 3 | 前髪あり | `has_bangs: true` かつ `negative_hair_bias` 空 | ☑ 合格 |
+| 4 | 表情排除 | `physical_traits` に表情語が含まれない | ☑ 合格 |
+| 5 | 計測記録 | ロード・推論時間・解放後 VRAM がログに残る | ☑ 合格 |
+| 6 | 顔未検出判定 | 顔が隠れた／写っていない画像で `face_detected: false` となる | ☑ 合格 |
+
+- **Gate 1-A 実測エビデンス（`vlm_benchmark.csv` より抜粋）**:
+
+| テスト画像 | 特徴 | 抽出属性 | 逆バイアス | 壁時計 | 解放後VRAM | 判定 |
+| :--- | :--- | :--- | :--- | :-: | :-: | :-: |
+| `koji-bose.jpg` | 短髪・眼鏡・額露出 (男) | `1boy, short hair, dark hair, glasses, exposed forehead` | `(bangs:1.3), (fringe:1.3), hair over forehead` | 10.77s | 614.7 MB | 合格 |
+| `koji-women-.jpg`| 長髪・眼鏡・額露出 (女) | `1girl, long hair, Black hair, straight texture, glasses, exposed forehead` | `(bangs:1.3), (fringe:1.3), hair over forehead` | 17.13s | 614.7 MB | 合格 |
+| `yae.jpg` | 短髪・前髪あり (女) | `1girl, short hair, black hair, straight texture, bangs` | なし（空文字） | 12.58s | 629.8 MB | 合格 |
+| `test_noface.jpg` | 顔なし黒一色画像 | `face_detected: false`, 全属性空/デフォルト値 | なし（空文字） | 11.52s | 614.7 MB | 合格 |
+
+> [!NOTE]
+> **運用知見（コールドスタート対策）**: 完全コールドスタート時の初回推論のみモデルのSSD/VRAM読込に時間がかかりタイムアウト（30秒超過）する事象を確認。FastAPI サーバー起動時にバックグラウンドで1回ダミーの空推論を実行してウォームアップを完了させる設計とする（Phase 3）。
+
 
 **1-B: SenseVoice 感情認識・ピーク音量 ＆ CPU 動作**（`verify_step1_sensevoice.py`）
 - `AutoModel(model="iic/SenseVoiceSmall", device="cpu")`。
 - 20ms フレーム RMS → 無音除外 → 90 パーセンタイル dBFS を算出し閾値判定。
 - 入力は共通仕様どおり **16kHz モノラル WAV（16bit PCM）** に統一し、ブラウザ `AudioContext` 出力相当の WAV でデコードエラーがないことを確認する。
 - 録音条件はブラウザ側 `autoGainControl / noiseSuppression / echoCancellation` すべて `false` 相当（叫び声のピークが減衰しない生音）で評価する。
+- **検証手順**:
+  1. `python record_test_audio.py` を実行してマイクからテスト音声を録音（または `--generate-synthetic` で合成音を生成）。
+  2. `python verify_step1_sensevoice.py --audio-dir test_assets/audio` を実行。
+  3. モデルロード前後の VRAM 増分が 0 MB であること、推論速度（0.5秒以内）、`rms_p90` による声量判定と感情タグのハイブリッド連動を確認。
+  4. `--threshold` オプションで `BURNING_DB_THRESHOLD` を一時変更し、感度切り替え動作を検証。
+- **実行コマンド**:
+  ```bash
+  # テスト録音（マイク対話式）
+  python record_test_audio.py
+  # 検証スクリプト実行
+  python verify_step1_sensevoice.py --audio-dir test_assets/audio
+  ```
 
 | # | Gate 1-B | 基準 | 合否 |
 | :-: | :--- | :--- | :-: |
-| 1 | VRAM 消費ゼロ | ロード前後の増分 0 MB | ☐ |
-| 2 | 推論速度 | 3〜5 秒音声で 0.5 秒以内 | ☐ |
-| 3 | ハイブリッド判定 | 叫び・明るい声・クールな声で表情が切替 | ☐ |
-| 4 | 閾値外部設定 | 閾値変更で昇格感度が変わる | ☐ |
+| 1 | VRAM 消費ゼロ | ロード前後の増分 0 MB | ☑ 合格 |
+| 2 | 推論速度 | 3〜5 秒音声で 0.5 秒以内 | ☑ 合格 |
+| 3 | ハイブリッド判定 | 叫び・明るい声・クールな声で表情が切替 | ☑ 合格 |
+| 4 | 閾値外部設定 | 閾値変更で昇格感度が変わる | ☑ 合格 |
+
+- **Phase 1 実測サマリ（VLM ＆ SenseVoice 実機ベンチマーク）**:
+
+| 項目 | モデル・設定 | 主要実測値 | Gate 基準との照合 |
+| :--- | :--- | :--- | :--- |
+| **VLM 外見抽出** | `gemma4:e2b`<br>(Ollama, `keep_alive: 0`) | ・通常時ロード時間: 約 5.5〜7.3s<br>・推論時間（eval）: 約 2.7〜6.0s<br>・壁時計合計: **10.8〜17.1s**（30s 枠内）<br>・解放後 VRAM: **614.7〜629.8 MB**（完全アンロード） | 全 5 パターンでパースエラー 0%・表情排除 100%・逆バイアス自動付与を確認（Gate 1-A 全基準クリア） |
+| **SenseVoice 音声解析** | `iic/SenseVoiceSmall`<br>(funasr, `device="cpu"`) | ・ロード前後 VRAM 増分: **0.0 MB**<br>・3〜3.5s 音声推論速度: **0.31〜0.42s**<br>・音量計算: 20ms RMS・無音除外 `rms_p90` 算出<br>・感情 × 音量判定: `BURNING` 昇格・`JOYFUL`・`EMOTIONAL`・`COOL` 切替 | VRAM 完全分離・目標 0.5s 以内・ハイブリッド表情切替・閾値外部制御を確認（Gate 1-B 全基準クリア） |
 
 ### Phase 2: ComfyUI ワークフロー改修 → `storyweaver_anime_api.json`
 

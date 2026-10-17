@@ -1,0 +1,18 @@
+timestamp,filename,duration_sec,rms_p90_db,threshold_db,raw_sensevoice_text,extracted_emotion,final_category,decision_reason,inference_time_sec,vram_delta_mb
+2026-10-17 11:17:37,01_shout.wav,3.5,-8.41,-12.0,<|nospeech|><|EMO_UNKNOWN|><|Sing|><|withitn|>.,NEUTRAL,BURNING,SenseVoice: NEUTRAL + 大声 (rms_p90 -8.41dB >= -12.0dB -> BURNING昇格),0.379,0.0
+2026-10-17 11:17:38,02_happy.wav,3.0,-13.55,-12.0,<|ko|><|EMO_UNKNOWN|><|Speech|><|withitn|>그.,NEUTRAL,COOL,SenseVoice: NEUTRAL + 通常声量 (rms_p90 -13.55dB < -12.0dB -> COOL),0.425,0.0
+2026-10-17 11:17:38,03_sad.wav,3.0,-25.64,-12.0,<|yue|><|NEUTRAL|><|Speech|><|withitn|>我.,NEUTRAL,COOL,SenseVoice: NEUTRAL + 通常声量 (rms_p90 -25.64dB < -12.0dB -> COOL),0.528,0.0
+2026-10-17 11:17:39,04_cool.wav,3.0,-17.97,-12.0,<|ko|><|EMO_UNKNOWN|><|BGM|><|withitn|>그.,NEUTRAL,COOL,SenseVoice: NEUTRAL + 通常声量 (rms_p90 -17.97dB < -12.0dB -> COOL),0.844,0.0
+2026-10-17 11:18:26,02_happy.wav,3.0,-13.55,-20.0,<|ko|><|EMO_UNKNOWN|><|Speech|><|withitn|>그.,NEUTRAL,BURNING,SenseVoice: NEUTRAL + 大声 (rms_p90 -13.55dB >= -20.0dB -> BURNING昇格),0.31,9.0
+2026-10-17 11:34:27,01_shout.wav,4.0,-6.55,-12.0,<|zh|><|HAPPY|><|Speech|><|withitn|>飘忽飘飘忽飘忽飘飘忽飘忽飘飘飘。,HAPPY,JOYFUL,SenseVoice: HAPPY (判定: JOYFUL),0.301,145.0
+2026-10-17 11:34:27,02_happy.wav,4.0,-10.47,-12.0,<|zh|><|EMO_UNKNOWN|><|Speech|><|withitn|>我ほほほ。,NEUTRAL,BURNING,SenseVoice: NEUTRAL + 大声 (rms_p90 -10.47dB >= -12.0dB -> BURNING昇格),0.28,145.0
+2026-10-17 11:34:28,03_sad.wav,4.0,-13.16,-12.0,<|zh|><|HAPPY|><|Speech|><|withitn|>呀乌乌。,HAPPY,JOYFUL,SenseVoice: HAPPY (判定: JOYFUL),0.272,145.0
+2026-10-17 11:34:28,04_cool.wav,4.0,-15.14,-12.0,<|zh|><|NEUTRAL|><|Speech|><|withitn|>虎小虎小虎虎虎虎虎虎虎。,NEUTRAL,COOL,SenseVoice: NEUTRAL + 通常声量 (rms_p90 -15.14dB < -12.0dB -> COOL),0.386,145.0
+2026-10-17 11:37:34,01_shout.wav,4.0,-6.55,-35.0,<|zh|><|HAPPY|><|Speech|><|withitn|>飘忽飘飘忽飘忽飘飘忽飘忽飘飘飘。,HAPPY,JOYFUL,SenseVoice: HAPPY (判定: JOYFUL),0.211,0.0
+2026-10-17 11:37:34,02_happy.wav,4.0,-10.47,-35.0,<|zh|><|EMO_UNKNOWN|><|Speech|><|withitn|>我ほほほ。,NEUTRAL,BURNING,SenseVoice: NEUTRAL + 大声 (rms_p90 -10.47dB >= -35.0dB -> BURNING昇格),0.203,0.0
+2026-10-17 11:37:35,03_sad.wav,4.0,-13.16,-35.0,<|zh|><|HAPPY|><|Speech|><|withitn|>呀乌乌。,HAPPY,JOYFUL,SenseVoice: HAPPY (判定: JOYFUL),0.213,0.0
+2026-10-17 11:37:35,04_cool.wav,4.0,-15.14,-35.0,<|zh|><|NEUTRAL|><|Speech|><|withitn|>虎小虎小虎虎虎虎虎虎虎。,NEUTRAL,BURNING,SenseVoice: NEUTRAL + 大声 (rms_p90 -15.14dB >= -35.0dB -> BURNING昇格),0.374,0.0
+2026-10-17 11:45:30,01_shout.wav,4.0,-6.55,-10.0,<|zh|><|HAPPY|><|Speech|><|withitn|>飘忽飘飘忽飘忽飘飘忽飘忽飘飘飘。,HAPPY,JOYFUL,SenseVoice: HAPPY (判定: JOYFUL),0.21,0.0
+2026-10-17 11:45:30,02_happy.wav,4.0,-10.47,-10.0,<|zh|><|EMO_UNKNOWN|><|Speech|><|withitn|>我ほほほ。,NEUTRAL,COOL,SenseVoice: NEUTRAL + 通常声量 (rms_p90 -10.47dB < -10.0dB -> COOL),0.232,0.0
+2026-10-17 11:45:30,03_sad.wav,4.0,-13.16,-10.0,<|zh|><|HAPPY|><|Speech|><|withitn|>呀乌乌。,HAPPY,JOYFUL,SenseVoice: HAPPY (判定: JOYFUL),0.211,0.0
+2026-10-17 11:45:30,04_cool.wav,4.0,-15.14,-10.0,<|zh|><|NEUTRAL|><|Speech|><|withitn|>虎小虎小虎虎虎虎虎虎虎。,NEUTRAL,COOL,SenseVoice: NEUTRAL + 通常声量 (rms_p90 -15.14dB < -10.0dB -> COOL),0.332,0.0
