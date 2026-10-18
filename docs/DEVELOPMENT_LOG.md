@@ -289,6 +289,26 @@ Mage-Flow の脱落を受け、元々の本命であるアニメ特化モデル�
 3. **反映先**:
    * `docs/plans/README.md` §2.1 に各画像ごとの ComfyUI 入力用テキストを整理・記録。
 
+---
+
+### 【第18期】VLM 髪長さ判定の厳格化（Phase 1-A v2 再評価）と Phase 2 再評価プロンプトの整理
+Phase 2 で `koji-bose.jpg` が `short hair` 判定のため女性ショートカット程度の髪で生成された（顔はおおむね追従）。`Attached_doc/vlm.md` の仕様に基づき VLM 抽出を改修し、Phase 1-A から再評価した。
+
+1. **`verify_step1_vlm.py` 修正**:
+   * `FaceVlmExtraction.hair_length` / `has_bangs` の `description` に cm 単位・頭皮/耳/額の露出基準を明記。
+   * `SYSTEM_PROMPT` に `4. HAIR LENGTH CRITERIA` を追加（前髪ありなら `short hair` 以上とする整合ルール含む）。
+   * `rule_based_transform`: `buzz cut` / `very short hair` 判定時に両タグを併記し、超短髪時のみネガティブに `ahoge, spiky hair, hair over ears, (bob cut:1.2)` を追加。
+   * 「`1boy` かつ額露出なら `buzz cut` へ強制変換」するフォールバックは副作用防止のため実装しない。
+2. **Phase 1-A v2 再評価結果**:
+   * `koji-bose.jpg`: `buzz cut` 判定 → `1boy, buzz cut, very short hair, dark hair, closely cropped, glasses, exposed forehead`（22.84s・初回ロード 15.0s 含む / 解放後 758.0 MB）。
+   * `koji-women-.jpg`: `long hair`・額露出を維持（13.48s / 773.0 MB）。
+   * `yae.jpg`: `short hair`・前髪あり・逆バイアス空を維持（11.83s / 826.1 MB）。
+   * `test_noface.jpg` はフォルダ未配置のため再評価未実施（v1 で合格済み）。`blue.jpg` は処理対象外。
+3. **ドキュメント**:
+   * `README.md` Gate 1-A エビデンスを v2 に更新（v1 は折りたたみで保全）。
+   * §2.1 を Phase 2 再評価用に整理（共通パーツ表・画像別差分表・コピー用プロンプト・観点 R-1〜R-4・記録表）。
+
+
 
 
 

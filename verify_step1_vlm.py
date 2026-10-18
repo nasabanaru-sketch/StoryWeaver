@@ -53,20 +53,29 @@ class FaceVlmExtraction(BaseModel):
         "buzz cut", "very short hair", "short hair", "medium hair", "long hair", "bald"
     ] = Field(
         ...,
-        description="Overall hair length. If face_detected is false, default to 'short hair'.",
+        description=(
+            "Strict hair length classification based on physical appearance: "
+            "'bald' = no hair on scalp; "
+            "'buzz cut' = shaved or clipped extremely close to the scalp (under 1 cm), head contour/scalp is visible, no bangs or locks; "
+            "'very short hair' = cropped short (1 to 3 cm, crew cut), ears and forehead are completely uncovered, no hanging strands; "
+            "'short hair' = 4 to 15 cm, hair has visible locks/strands, covers part of forehead (bangs) or reaches around ears/jawline (bob/regular cut); "
+            "'medium hair' = reaches neck or shoulders; "
+            "'long hair' = extends past shoulders. "
+            "If face_detected is false, default to 'short hair'."
+        ),
     )
     hair_style_details: str = Field(
         ...,
         description=(
             "Comma-separated Danbooru-style English tags for hair color, texture, cut, parting, or hairline "
-            "(e.g., 'black hair, straight hair, receding hairline'). "
+            "(e.g., 'dark hair, straight hair, receding hairline'). "
             "STRICTLY FORBIDDEN: Any facial expression words (e.g., smile, laughing, angry, open mouth). "
             "If face_detected is false, default to ''."
         ),
     )
     has_bangs: bool = Field(
         ...,
-        description="True if bangs/fringe cover the forehead. False if forehead is exposed or hair is swept back/buzz cut. If face_detected is false, default to false.",
+        description="True if bangs/fringe hang down over the forehead. False if forehead is exposed, swept back, or buzz cut. If face_detected is false, default to false.",
     )
     exposed_forehead: bool = Field(
         ...,
@@ -104,6 +113,13 @@ CRITICAL INSTRUCTIONS:
 3. FOREHEAD & BANGS:
    - If bangs cover the forehead, set `has_bangs` = true, `exposed_forehead` = false.
    - If forehead is exposed, receding, buzz cut, swept back, or bald, set `has_bangs` = false, `exposed_forehead` = true.
+
+4. HAIR LENGTH CRITERIA (CRITICAL FOR SHORT HAIR vs BUZZ CUT):
+   - `bald`: Completely hairless crown/scalp.
+   - `buzz cut`: Hair is shaved/clipped very close to the head (under 1 cm). Round skull contour is clearly visible, no hair strands hang down, ears and forehead are 100% exposed.
+   - `very short hair`: Cropped close (1 to 3 cm, crew cut / sporty cut). Sides are tight, ears are completely clear, no bangs.
+   - `short hair`: Hair is 4 to 15 cm with distinct locks/strands, such as a bob cut or standard boy/girl short cut that has bangs or reaches the ears/napeline.
+   - RULE: If a person has closely cropped/shaved hair with NO hanging locks and completely exposed ears/forehead, you MUST select `buzz cut` or `very short hair`. NEVER classify a buzz cut as `short hair`. Conversely, if the person has bangs covering the forehead, `hair_length` must be at least `short hair`.
 
 Output MUST strictly conform to the provided JSON schema."""
 
@@ -163,10 +179,15 @@ def rule_based_transform(extracted: FaceVlmExtraction) -> tuple[str, str, list[s
 
     traits: list[str] = [extracted.gender_tag]
 
-    if extracted.hair_length and extracted.hair_length != "bald":
-        traits.append(extracted.hair_length)
+    # 髪の長さタグの展開（超短髪時は Animagine XL の長髪化バイアスを抑えるため重ね掛け）
+    if extracted.hair_length == "buzz cut":
+        traits.extend(["buzz cut", "very short hair"])
+    elif extracted.hair_length == "very short hair":
+        traits.extend(["very short hair", "buzz cut"])
     elif extracted.hair_length == "bald":
         traits.append("bald")
+    elif extracted.hair_length:
+        traits.append(extracted.hair_length)
 
     # hair_style_details のパース & 表情タグの検知・サニタイズ
     expression_warnings: list[str] = []
@@ -195,12 +216,18 @@ def rule_based_transform(extracted: FaceVlmExtraction) -> tuple[str, str, list[s
     # ルール: has_bangs == False または exposed_forehead == True の場合、
     # physical_traits に exposed forehead を確実に含め、
     # negative_hair_bias に "(bangs:1.3), (fringe:1.3), hair over forehead" をセット
+    # 額露出・前髪判定および超短髪ネガティブ判定
+    # ※「1boy かつ額露出なら buzz cut へ強制変換」するフォールバックは副作用防止のため実装しない
+    neg_tokens: list[str] = []
     if not extracted.has_bangs or extracted.exposed_forehead:
         if "exposed forehead" not in [t.lower() for t in traits]:
             traits.append("exposed forehead")
-        negative_hair_bias = "(bangs:1.3), (fringe:1.3), hair over forehead"
-    else:
-        negative_hair_bias = ""
+        neg_tokens.extend(["(bangs:1.3)", "(fringe:1.3)", "hair over forehead"])
+
+    if extracted.hair_length in ("buzz cut", "very short hair", "bald"):
+        neg_tokens.extend(["ahoge", "spiky hair", "hair over ears", "(bob cut:1.2)"])
+
+    negative_hair_bias = ", ".join(neg_tokens)
 
     # 重複タグ排除（大文字小文字を無視しつつ順序を維持）
     seen = set()
