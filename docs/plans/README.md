@@ -246,7 +246,7 @@ graph LR
 
 | 項目 | モデル・設定 | 主要実測値 | Gate 基準との照合 |
 | :--- | :--- | :--- | :--- |
-| **VLM 外見抽出** | `gemma4:e2b`<br>(Ollama, `keep_alive: 0`) | ・通常時ロード時間: 約 5.5〜7.3s<br>・推論時間（eval）: 約 2.7〜6.0s<br>・壁時計合計: **10.8〜17.1s**（30s 枠内）<br>・解放後 VRAM: **614.7〜629.8 MB**（完全アンロード） | 全 5 パターンでパースエラー 0%・表情排除 100%・逆バイアス自動付与を確認（Gate 1-A 全基準クリア） |
+| **VLM 外見抽出** | `gemma4:e2b`<br>(Ollama, `keep_alive: 0`) | ・通常時ロード時間: 約 5.5s（コールド初回 15.0s）<br>・推論時間（eval）: 約 3.7〜4.7s<br>・壁時計合計: **11.8〜22.8s**（30s 枠内）<br>・解放後 VRAM: **758.0〜826.1 MB**（完全アンロード） | v2 再評価にて `koji-bose` の `buzz cut` 判定と超短髪ネガティブ付与を確認。全画像でパースエラー 0%・表情排除 100%（Gate 1-A 全基準クリア） |
 | **SenseVoice 音声解析** | `iic/SenseVoiceSmall`<br>(funasr, `device="cpu"`) | ・ロード前後 VRAM 増分: **0.0 MB**<br>・3〜3.5s 音声推論速度: **0.31〜0.42s**<br>・音量計算: 20ms RMS・無音除外 `rms_p90` 算出<br>・感情 × 音量判定: `BURNING` 昇格・`JOYFUL`・`EMOTIONAL`・`COOL` 切替 | VRAM 完全分離・目標 0.5s 以内・ハイブリッド表情切替・閾値外部制御を確認（Gate 1-B 全基準クリア） |
 
 ### Phase 2: ComfyUI ワークフロー改修 → `storyweaver_anime_api.json`
