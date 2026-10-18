@@ -272,6 +272,24 @@ Mage-Flow の脱落を受け、元々の本命であるアニメ特化モデル�
    * Gate 1-A（VLM 外見抽出）および Gate 1-B（SenseVoice 感情・音量解析）の全項目が合格基準を満たし、Phase 1 が完了。
    * 次フェーズ Phase 2（ComfyUI ワークフロー改修: `storyweaver_anime_api.json`）への移行準備が完了。
 
+---
+
+### 【第17期】Phase 2：添付ComfyUIワークフローに基づくテスト画像別プロンプト策定・計画書記録
+ユーザー提示の ComfyUI ワークフロー（Animagine FP8 + InstantID + IP-Adapter Plus Face + FaceDetailer）に基づき、追加の画像解析を行わず Phase 1 確定結果のみを活用して `test_assets/faces/` 内の検証用プロンプトを策定し、`docs/plans/README.md` へ反映。
+
+1. **基本方針**:
+   * 「決して追加で画像分析を行わない」制約を厳守し、Phase 1（Gate 1-A）の `vlm_benchmark.csv` に記録された構造化データ（`gender_tag`, `hair_length`, `hair_style_details`, `glasses`, `exposed_forehead`, `has_bangs`）およびルール変換後の `physical_traits` / `negative_hair_bias` のみを適用。
+   * 添付ワークフロー内の 3 系統プロンプト（Node 5: Base Positive, Node 6: Base Negative, Node 32: FaceDetailer Positive）に完全対応。
+   * FaceDetailer プロンプトには、第14期改訂方針に従い「案B（表情専念・優先検証）」を主軸としつつ、比較用に「案A（外見属性再注入）」も併記。
+2. **対象画像とプロンプトの対応**:
+   * **`koji-bose.jpg`（短髪・眼鏡・額露出 男）**: `1boy, short hair, dark hair, glasses, exposed forehead` ＋ 逆バイアス `(bangs:1.3), (fringe:1.3), hair over forehead`
+   * **`koji-women-.jpg`（長髪・眼鏡・額露出 女）**: `1girl, long hair, Black hair, straight texture, glasses, exposed forehead` ＋ 逆バイアス
+   * **`yae.jpg`（短髪・前髪あり 女）**: `1girl, short hair, black hair, straight texture, bangs` ＋ 逆バイアスなし（前髪保護）
+   * **`blue.jpg`**: Phase 1 ベンチマーク未実施のため、追加解析禁止ルールに基づき保留。
+3. **反映先**:
+   * `docs/plans/README.md` §2.1 に各画像ごとの ComfyUI 入力用テキストを整理・記録。
+
+
 
 
 

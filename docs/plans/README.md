@@ -252,6 +252,86 @@ graph LR
 > [!NOTE]
 > **仕様書からの変更根拠**: `storyweaver_live.md` の InstantID 重み `0.55〜0.60` を Base で `0.70` に引き上げる。IP-Adapter Plus Face で頭部を補助しつつ `cn_strength: 0.15` で骨格拘束を外すため、顔特徴の担保を IP 側に寄せる必要があるため。Lightning 4-step は画質確立まで不採用（[AGENTS.md](file:///c:/antigravity/StoryWeaver/AGENTS.md) §3②）。
 
+#### 2.1 Phase 2 検証プロンプト一覧（Phase 1 VLM 外見抽出結果の適用）
+
+添付ワークフロー（Node 5: `CLIPTextEncode posi` / Node 6: `CLIPTextEncode nega` / Node 32: `CLIPTextEncode posi-fd` / Node 12: `LoadImage`）に直接入力して検証するための各テスト画像別プロンプトセット。
+※追加の画像分析は一切行わず、Phase 1（Gate 1-A）で確定した VLM（`gemma4:e2b`）の抽出属性およびルールベース変換結果（`vlm_benchmark.csv`）のみを厳密に適用。
+※シーンは共通仕様の `scene_01`（覚醒の剣士）、感情は `BURNING`（熱血・叫び）を基準プリセットとして設定。
+
+##### ① `koji-bose.jpg`（短髪・眼鏡・額露出 / 男性）
+- **VLM 抽出属性**: `gender_tag: 1boy`, `hair_length: short hair`, `hair_style_details: dark hair`, `glasses: glasses`, `exposed_forehead: true`, `has_bangs: false`
+- **ルール変換後 physical_traits**: `1boy, short hair, dark hair, glasses, exposed forehead`（※ワークフロー内プリセットでは `buzz cut` 補強版も可）
+- **Node 12 (`LoadImage`)**: `koji-bose.jpg`
+- **Node 5 (`CLIPTextEncode posi` / Base Positive)**:
+  ```text
+  1boy, solo, short hair, dark hair, glasses, exposed forehead, shouting, fierce determination, intense eyes, open mouth, battle cry, dynamic expression, fantasy anime, dramatic battlefield, dynamic pose, drawing a glowing legendary sword, leaning forward, flying sparks, cinematic lighting, masterpiece, best quality, very aesthetic, absurdres
+  ```
+  *(※添付ワークフローのプリセット表記: `buzz cut` 版)*
+  ```text
+  1boy, solo, buzz cut, dark hair, glasses, exposed forehead, shouting, fierce determination, intense eyes, open mouth, battle cry, dynamic expression, fantasy anime, dramatic battlefield, dynamic pose, drawing a glowing legendary sword, leaning forward, flying sparks, cinematic lighting, masterpiece, best quality, very aesthetic, absurdres
+  ```
+- **Node 6 (`CLIPTextEncode nega` / Base Negative - 逆バイアスあり)**:
+  ```text
+  (bangs:1.3), (fringe:1.3), hair over forehead, nsfw, lowres, (bad), text, error, fewer, extra, missing, worst quality, jpeg artifacts, low quality, watermark, unfinished, displeasing, oldest, early, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract], photorealistic, realistic, 3d
+  ```
+- **Node 32 (`CLIPTextEncode posi-fd` / FD Positive 案B: 表情専念・優先検証)**:
+  ```text
+  1boy, solo, close-up, face focus, shouting, fierce determination, intense eyes, open mouth, battle cry, dynamic expression, detailed anime eyes, masterpiece, best quality, very aesthetic, absurdres
+  ```
+  *(比較検証用 案A: 原案・外見属性再注入)*
+  ```text
+  1boy, solo, close-up, face focus, short hair, dark hair, glasses, exposed forehead, shouting, fierce determination, intense eyes, open mouth, battle cry, dynamic expression, detailed anime eyes, masterpiece, best quality, very aesthetic, absurdres
+  ```
+
+##### ② `koji-women-.jpg`（長髪・眼鏡・額露出 / 女性）
+- **VLM 抽出属性**: `gender_tag: 1girl`, `hair_length: long hair`, `hair_style_details: Black hair, straight texture`, `glasses: glasses`, `exposed_forehead: true`, `has_bangs: false`
+- **ルール変換後 physical_traits**: `1girl, long hair, Black hair, straight texture, glasses, exposed forehead`
+- **Node 12 (`LoadImage`)**: `koji-women-.jpg`
+- **Node 5 (`CLIPTextEncode posi` / Base Positive)**:
+  ```text
+  1girl, solo, long hair, Black hair, straight texture, glasses, exposed forehead, shouting, fierce determination, intense eyes, open mouth, battle cry, dynamic expression, fantasy anime, dramatic battlefield, dynamic pose, drawing a glowing legendary sword, leaning forward, flying sparks, cinematic lighting, masterpiece, best quality, very aesthetic, absurdres
+  ```
+- **Node 6 (`CLIPTextEncode nega` / Base Negative - 逆バイアスあり)**:
+  ```text
+  (bangs:1.3), (fringe:1.3), hair over forehead, nsfw, lowres, (bad), text, error, fewer, extra, missing, worst quality, jpeg artifacts, low quality, watermark, unfinished, displeasing, oldest, early, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract], photorealistic, realistic, 3d
+  ```
+- **Node 32 (`CLIPTextEncode posi-fd` / FD Positive 案B: 表情専念・優先検証)**:
+  ```text
+  1girl, solo, close-up, face focus, shouting, fierce determination, intense eyes, open mouth, battle cry, dynamic expression, detailed anime eyes, masterpiece, best quality, very aesthetic, absurdres
+  ```
+  *(比較検証用 案A: 原案・外見属性再注入)*
+  ```text
+  1girl, solo, close-up, face focus, long hair, Black hair, straight texture, glasses, exposed forehead, shouting, fierce determination, intense eyes, open mouth, battle cry, dynamic expression, detailed anime eyes, masterpiece, best quality, very aesthetic, absurdres
+  ```
+
+##### ③ `yae.jpg`（短髪・前髪あり・眼鏡なし / 女性）
+- **VLM 抽出属性**: `gender_tag: 1girl`, `hair_length: short hair`, `hair_style_details: black hair, straight texture, bangs`, `glasses: none`, `exposed_forehead: false`, `has_bangs: true`
+- **ルール変換後 physical_traits**: `1girl, short hair, black hair, straight texture, bangs`
+- **Node 12 (`LoadImage`)**: `yae.jpg`
+- **Node 5 (`CLIPTextEncode posi` / Base Positive)**:
+  ```text
+  1girl, solo, short hair, black hair, straight texture, bangs, shouting, fierce determination, intense eyes, open mouth, battle cry, dynamic expression, fantasy anime, dramatic battlefield, dynamic pose, drawing a glowing legendary sword, leaning forward, flying sparks, cinematic lighting, masterpiece, best quality, very aesthetic, absurdres
+  ```
+- **Node 6 (`CLIPTextEncode nega` / Base Negative - 逆バイアスなし)**:
+  ```text
+  nsfw, lowres, (bad), text, error, fewer, extra, missing, worst quality, jpeg artifacts, low quality, watermark, unfinished, displeasing, oldest, early, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract], photorealistic, realistic, 3d
+  ```
+  > [!IMPORTANT]
+  > `yae.jpg` は `has_bangs: true`（前髪あり）のため、前髪を維持すべく `(bangs:1.3), (fringe:1.3), hair over forehead` はネガティブから除外する。
+- **Node 32 (`CLIPTextEncode posi-fd` / FD Positive 案B: 表情専念・優先検証)**:
+  ```text
+  1girl, solo, close-up, face focus, shouting, fierce determination, intense eyes, open mouth, battle cry, dynamic expression, detailed anime eyes, masterpiece, best quality, very aesthetic, absurdres
+  ```
+  *(比較検証用 案A: 原案・外見属性再注入)*
+  ```text
+  1girl, solo, close-up, face focus, short hair, black hair, straight texture, bangs, shouting, fierce determination, intense eyes, open mouth, battle cry, dynamic expression, detailed anime eyes, masterpiece, best quality, very aesthetic, absurdres
+  ```
+
+##### ④ `blue.jpg`（未分析画像に関する取り扱い）
+> [!NOTE]
+> `test_assets/faces/blue.jpg` はフォルダ内に存在しますが、Phase 1 のベンチマーク対象に含まれておらず、VLM分析データが存在しません。「追加で画像分析を行わない」制約を遵守するため、本画像に対するプロンプト生成および検証は保留とし、Phase 1 確定済みの3枚（短髪男性、長髪女性、前髪あり女性）を検証評価の基準とします。
+
+
 | # | Gate 2 | 基準 | 合否 |
 | :-: | :--- | :--- | :-: |
 | 1 | 手動修正ゼロの両立 | Phase 1 の自動タグのみで、髪型・眼鏡・顔立ち／動的ポーズ／指定表情が両立 | ☐ |
