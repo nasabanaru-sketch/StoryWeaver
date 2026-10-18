@@ -112,12 +112,12 @@ sequenceDiagram
 | :--- | :--- |
 | `Node_Pos_Base` | `{gender_tag}, solo, {physical_traits}, {expression_prompt}, {scene_prompt}, masterpiece, best quality, very aesthetic, absurdres` |
 | `Node_Neg_Base` | `{negative_hair_bias}, nsfw, lowres, (bad), text, error, fewer, extra, missing, worst quality, jpeg artifacts, low quality, watermark, unfinished, displeasing, oldest, early, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract], photorealistic, realistic, 3d` |
-| `Node_Pos_FD`（案A: 原案） | `{gender_tag}, solo, close-up, face focus, {physical_traits}, {expression_prompt}, detailed anime eyes, masterpiece, best quality, very aesthetic, absurdres`（`{scene_prompt}` は除外） |
-| `Node_Pos_FD`（案B: 表情専念・**優先検証**） | `{gender_tag}, solo, close-up, face focus, {expression_prompt}, detailed anime eyes, masterpiece, best quality, very aesthetic, absurdres`（`{physical_traits}` の髪型・眼鏡タグを除外） |
+| `Node_Pos_FD`（**案B: 表情専念・正式採用**） | `{gender_tag}, solo, close-up, face focus, {expression_prompt}, detailed anime eyes, masterpiece, best quality, very aesthetic, absurdres`（`{physical_traits}` の髪型・眼鏡タグを除外） |
+| `Node_Pos_FD`（案A: 参考・原案） | `{gender_tag}, solo, close-up, face focus, {physical_traits}, {expression_prompt}, detailed anime eyes, masterpiece, best quality, very aesthetic, absurdres`（`{scene_prompt}` は除外） |
 
-- `{negative_hair_bias}`: 前髪なし判定時に `(bangs:1.3), (fringe:1.3), hair over forehead` を自動挿入。
-- **FD プロンプトの注記**: FaceDetailer は `bbox_crop_factor: 1.4` の狭いクロップを `denoise: 0.25〜0.28` で再描画するため、頭髪・眼鏡は Base 生成結果がほぼ維持される。ここで `buzz cut` / `glasses` 等を再注入すると、クロップ境界での不自然な生え際や二重フレームを招く恐れがあるため、**案B（表情専念）を優先検証** し、Phase 2 で A/B を比較して採否を確定する。
-- 最終的な順序・重みは Phase 2 Gate で確定する。
+- `{negative_hair_bias}`: 前髪なし判定時に `(bangs:1.3), (fringe:1.3), hair over forehead` を自動挿入（超短髪時は `ahoge, spiky hair, hair over ears, (bob cut:1.2)` を追加）。
+- **FD プロンプトの確定（案B）**: FaceDetailer は `bbox_crop_factor: 1.4` の狭いクロップを `denoise: 0.25〜0.28` で再描画するため、頭髪・眼鏡は Base 生成結果が維持される。髪型・眼鏡タグの再注入による二重描画を防ぐため、**案B（表情専念）を正式採用**。
+- 最終的な品質タグ等の詳細調整はプロンプト修正にて継続。
 
 ### 3.4 VRAM 配分（上限 14.5 GB 厳守）
 
@@ -364,18 +364,17 @@ graph LR
 | Run ID | 日付 | 画像 | FD 案 | R-1 | R-2 | R-3 | R-4 | 所感 |
 | :--- | :--- | :--- | :-: | :-: | :-: | :-: | :-: | :--- |
 | P2-v1-01 | 2026-10-18 | koji-bose（`short hair`） | — | ❌ | — | — | — | 顔はおおむね追従。髪が女性ショートカット程度まで伸びる → VLM 判定基準を厳格化（v2） |
-| P2-v2-01 | | koji-bose | B | | | — | | |
-| P2-v2-02 | | koji-bose | A | | | — | | |
-| P2-v2-03 | | koji-women | B | — | — | | | |
-| P2-v2-04 | | yae | B | — | — | | | |
+| P2-v2-01 | 2026-10-18 | koji-bose（`buzz cut`） | B | ☑ | ☑ | — | ☑ | 髪型・眼鏡・顔立ちにVLM結果が反映。FD案はBで確定。VRAM問題なし、時間許容内。画質はプロンプト修正で詰める方針 |
+| P2-v2-02 | 2026-10-18 | koji-women | B | — | — | ☑ | ☑ | 回帰確認 |
+| P2-v2-03 | 2026-10-18 | yae | B | — | — | ☑ | ☑ | 回帰確認 |
 
 
 | # | Gate 2 | 基準 | 合否 |
 | :-: | :--- | :--- | :-: |
-| 1 | 手動修正ゼロの両立 | Phase 1 の自動タグのみで、髪型・眼鏡・顔立ち／動的ポーズ／指定表情が両立 | ☐ |
-| 2 | VRAM | 生成中ピーク ≤ 13.0 GB、InsightFace による増分なし | ☐ |
-| 3 | テンプレート確定 | プロンプト順序・重みを確定し本書 3.3 を更新（FD 案A/B・SAM 有無の採否を含む） | ☐ |
-| 4 | 時間と画質の両立 | 展示運用で許容できる生成時間（目標秒数）と画質・本人同一性の両立設定を確定し、本書 3.5 に記録 | ☐ |
+| 1 | 手動修正ゼロの両立 | Phase 1 の自動タグのみで、髪型・眼鏡・顔立ち／動的ポーズ／指定表情が両立 | ☑ 合格（VLM v2 結果の反映を確認） |
+| 2 | VRAM | 生成中ピーク ≤ 13.0 GB、InsightFace による増分なし | ☑ 合格（問題なし） |
+| 3 | テンプレート確定 | プロンプト順序・重みを確定し本書 3.3 を更新（FD 案A/B・SAM 有無の採否を含む） | ☑ 合格（FD は案B［表情専念］を正式採用） |
+| 4 | 時間と画質の両立 | 展示運用で許容できる生成時間（目標秒数）と画質・本人同一性の両立設定を確定し、本書 3.5 に記録 | ⏳ 継続（時間は許容範囲内。画質はプロンプト修正で詰める方針） |
 
 ### Phase 3: FastAPI 2 段階エンドポイント（`server.py`）
 
