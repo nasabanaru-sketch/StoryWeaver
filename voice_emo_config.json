@@ -1,0 +1,129 @@
+{
+  "model_name": "audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim",
+  "device": "cpu",
+  "sample_rate": 16000,
+  "default_baseline": {
+    "valence": 0.50,
+    "arousal": 0.50,
+    "dominance": 0.50,
+    "logRelF0-H1-H2": -5.0,
+    "HNRdBACF": 12.0,
+    "alphaRatioV": -15.0,
+    "hammarbergIndexV": 18.0,
+    "loudnessPeaksPerSec": 3.0,
+    "duration_sec": 3.5,
+    "jitterLocal": 0.02,
+    "shimmerLocaldB": 0.80
+  },
+  "scales": {
+    "valence": 0.35,
+    "arousal": 0.35,
+    "dominance": 0.35,
+    "logRelF0-H1-H2": 8.0,
+    "HNRdBACF": 6.0,
+    "alphaRatioV": 8.0,
+    "hammarbergIndexV": 8.0,
+    "loudnessPeaksPerSec": 2.0,
+    "duration_sec": 1.5,
+    "jitterLocal": 0.025,
+    "shimmerLocaldB": 0.60
+  },
+  "emotions": {
+    "sensuality": {
+      "id": "sensuality",
+      "name_ja": "色気・官能",
+      "icon": "💋",
+      "description": "息混じりの吐息とゆったりした余韻による艶やかな色香",
+      "face_tags": "seductive half-closed eyes, slightly parted lips, sultry expression, slight blush, moist glossy lips",
+      "lighting_tags": "magenta and amber rim lighting, moody atmosphere, cinematic soft shadows, alluring glow"
+    },
+    "affection": {
+      "id": "affection",
+      "name_ja": "愛情・親愛",
+      "icon": "💖",
+      "description": "温かな快感と吐息が織りなす心からの好意と親愛",
+      "face_tags": "loving gaze, tender gentle smile, warm blush, affectionate expression, glistening eyes",
+      "lighting_tags": "warm golden hour lighting, soft glowing particles, dreamy romantic bokeh"
+    },
+    "benevolence": {
+      "id": "benevolence",
+      "name_ja": "慈愛・優しさ",
+      "icon": "🕊️",
+      "description": "柔らかく穏やかな声が包み込む母性的な慈しみ",
+      "face_tags": "serene benevolent smile, compassionate gentle eyes, tranquil expression, calm face",
+      "lighting_tags": "ethereal heavenly backlight, soft divine god rays, pure radiant glow"
+    },
+    "self_love": {
+      "id": "self_love",
+      "name_ja": "自愛・陶酔",
+      "icon": "✨",
+      "description": "自信に満ちた支配感と自らの魅力への酔いしれ",
+      "face_tags": "smug confident smirk, tilted head, intoxicated expression, half-closed haughty eyes",
+      "lighting_tags": "lavender and violet neon rim light, glittering jewel reflections, opulent atmosphere"
+    },
+    "joy": {
+      "id": "joy",
+      "name_ja": "歓喜・喜び",
+      "icon": "🌟",
+      "description": "高揚感とポジティブエネルギーに満ちた心からの喜び",
+      "face_tags": "beaming smile, wide cheerful sparkling eyes, radiant ecstatic expression, joyful tears",
+      "lighting_tags": "brilliant dynamic sunbeams, vibrant lens flare, sparkling energetic atmosphere"
+    },
+    "amusement": {
+      "id": "amusement",
+      "name_ja": "楽しさ・無邪気",
+      "icon": "😄",
+      "description": "テンポ良い快活な声が弾む無邪気な好奇心とおどけ",
+      "face_tags": "playful mischievous grin, lively bright eyes, cheerful wink, open smile",
+      "lighting_tags": "bright saturated ambient daylight, festive colorful particles, high key lighting"
+    },
+    "sorrow": {
+      "id": "sorrow",
+      "name_ja": "哀しみ・憂愁",
+      "icon": "💧",
+      "description": "声の微細な震えと沈鬱さが語る深い哀愁と切なさ",
+      "face_tags": "melancholic gaze, tears streaming down cheeks, trembling parted lips, heartbroken sorrowful expression",
+      "lighting_tags": "cold blue tone lighting, falling raindrops, dramatic chiaroscuro, melancholic mist"
+    },
+    "bashfulness": {
+      "id": "bashfulness",
+      "name_ja": "恥じらい・照れ",
+      "icon": "😳",
+      "description": "吐息と揺らぐ声で好意を隠しきれない甘酸っぱい照れ",
+      "face_tags": "heavy deep blush on cheeks, shy averted gaze, flustered expression, bashful embarrassed pout",
+      "lighting_tags": "rosy pastel ambient lighting, delicate soft bloom, gentle warm glow"
+    },
+    "rage": {
+      "id": "rage",
+      "name_ja": "激しい怒り",
+      "icon": "🔥",
+      "description": "鋭く張り詰めた高テンションと支配的な怒気",
+      "face_tags": "furious glare, gritted teeth, fierce angry scowl, sharp piercing eyes, intense rage expression",
+      "lighting_tags": "fiery red and orange rim lighting, billowing smoke, blazing embers and sparks, harsh stark shadows"
+    },
+    "hatred": {
+      "id": "hatred",
+      "name_ja": "憎しみ・怨念",
+      "icon": "👿",
+      "description": "低く硬い声の奥に潜む底知れぬ怨恨と殺意",
+      "face_tags": "murderous cold glare, sinister twisted sneer, dark shadowed eyes, terrifying hatred expression",
+      "lighting_tags": "deep blood crimson and obsidian backlighting, ominous dark aura, eerie horror lighting"
+    },
+    "contempt": {
+      "id": "contempt",
+      "name_ja": "軽蔑・冷酷",
+      "icon": "😏",
+      "description": "冷徹な声のトーンで見下す氷のような傲慢さと嘲笑",
+      "face_tags": "cold condescending look, looking down with disdain, scornful half-smirk, icy distant eyes",
+      "lighting_tags": "harsh cool cyan directional spotlight, stark sharp shadows, clinical cold lighting"
+    },
+    "fear": {
+      "id": "fear",
+      "name_ja": "恐怖・怯え",
+      "icon": "😨",
+      "description": "緊迫した覚醒と震えが表す底知れぬ恐怖と動揺",
+      "face_tags": "dilated terrified pupils, wide fearful eyes, pale shock face, parted trembling lips, sweating",
+      "lighting_tags": "stark flickering harsh lighting, heavy encroaching darkness, ominous vignetting"
+    }
+  }
+}

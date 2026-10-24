@@ -22,6 +22,12 @@ timeline
     Phase 3 計画改訂指示 : Mage-Flow / FLUX.2 Klein 調査指示 : 画質最優先・Base 30 steps 計画策定
     Mage-Flow 実機テスト : 実写寄り・画質不良 : 多人数コラージュ破綻 (solo無視) : Gate 3-1 【確定 NG】・中止決定
     Animagine + Advanced 移行 : 実在モデルファイル特定 : ApplyInstantIDAdvanced (骨格緩和) 採用 : 2段階アプローチ策定 : Git管理・全履歴の統合
+    計画 v4〜v5 (旧Phase 3) : 3大フェーズ化 : 最大7分許容 : RUN-3A 髪型不一致分析 : FaceDetailer 改訂
+    全体計画 v6.2/v6.3 : VLM外見抽出 + 2段階API : VRAM解放・WAV統一・撮影ガイド
+    Phase 1 完了 (10/17-18) : Gate 1-A VLM : Gate 1-B SenseVoice : VLM v2 髪長さ厳格化
+    Phase 2 (10/18-) : FD案B採用 : 時間短縮は未着手
+    Phase 3 完了 (10/22) : server.py 2段階API : Gate 3 ALL PASS
+    Phase 4 実装 (10/23-24) : 5ステップUI・スタッフ設定 : 12感情モード : 作りこみワークベンチ : ランチャー・運用マニュアル
 ```
 
 ---
@@ -324,6 +330,96 @@ Phase 2 で `koji-bose.jpg` が `short hair` 判定のため女性ショート�
    * 基準 2（VRAM）: 合格
    * 基準 3（テンプレート確定）: 合格（FD 案B 正式採用）
    * 基準 4（時間と画質）: 継続（時間は許容内、画質はプロンプト修正で対応）
+
+---
+
+### 【第20期】Phase 3：FastAPI 2段階エンドポイント実装と Gate 3 全基準合格（2026-10-22）
+Phase 2 の基準 4（時間短縮）を継続課題として残したまま、パイプライン統合を先行して `server.py` を実装。
+
+1. **実装内容**:
+   * `storyweaver_anime_api.json`（ComfyUI API Format）を作成し、`build_workflow()` で 3 系統プロンプト（Node 5 / 6 / 32）と顔画像ファイル名を注入。
+   * `POST /api/analyze_face`: ComfyUI `input` へ配置 → `POST /free` で VRAM 解放・待機確認 → VLM 抽出（`keep_alive: 0`）→ 顔未検出時は `422 FACE_NOT_DETECTED`。
+   * `POST /api/generate_scene`: 16kHz モノラル PCM16 WAV 以外は `415`。analyze 実行中は `asyncio.Event` で待機 → SenseVoice + `rms_p90` → プリセット統合 → ComfyUI → `outputs/cards/` へ PNG 保存。
+   * セッション TTL（`SESSION_TTL_SEC: 900`）による自動破棄、起動時の一時ファイルスイープ、Ollama ウォームアップ（第15期の知見を反映）。
+   * 設定値を `config.json` に外部化（URL、タイムアウト、VRAM 上限 `VRAM_PEAK_LIMIT_MB: 14848` 等）。
+2. **検証結果（`verify_step3_api.py` / `verify_step3_api.log`）**: ALL PASS
+   * ① 正常系 125.6s（JOYFUL, rms -6.55 dBFS） / ② 競合待機 133.7s で 200 / ③ 422・404・415 を確認 / ④ 残留ファイル・セッション 0 件 / ⑤ 連続 2 回 VRAM ピーク 13,568 MB（≤ 14,848 MB）。
+3. **注記**: 1 体験あたり約 2 分（125s 前後）。展示目標時間は Phase 2 後半で確定する前提のまま。
+
+---
+
+### 【第21期】Phase 4 計画改訂：音声解析の分離・セリフ編集・スタッフ管理の追加
+`docs/plans/README.md` の Phase 4 を以下の内容に改訂（Gate 4 を 4 項目 → 5 項目へ）。
+
+1. **音声解析の単独 API 化**: 録音停止直後に `POST /api/analyze_audio` で文字起こし・感情・音量を先に返す。
+2. **セリフ編集**: 文字起こし結果を入力欄へ自動反映し、来場者・スタッフが手で修正してから生成する。
+3. **スタッフ設定モード**: シーン CRUD（`GET/PUT /api/presets`）、カメラ・マイク選択（`localStorage` 保持）、`BURNING_DB_THRESHOLD` スライダー（`GET/PUT /api/config`）。
+4. **アートカード**: セリフ・シーン名・感情タグ・ロゴの合成、PNG 保存、印刷。
+
+---
+
+### 【第22期】12感情・色気スコア解析モジュール（voice_emo）の実装と統合
+ユーザー提示の仕様書 `Attached_doc/voice_emo.md` に基づき、従来の 4 判定（BURNING/JOYFUL/EMOTIONAL/COOL）に加えて拡張感情分析モードを追加。
+
+1. **構成**:
+   * `voice_emo_analyzer.py`: `audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim`（Arousal/Dominance/Valence）と openSMILE eGeMAPSv02（息漏れ・柔らかさ・ゆったり感・揺らぎ）を合成し、7 基礎指標 → 12 感情スコア（0〜100）と Animagine 用表情・ライティングタグを算出。CPU 推論で VRAM 増分 0 MB の方針。
+   * `voice_emo_config.json`（重み・プロンプト辞書）、`voice_emo_baseline.json`（棒読み基準値）。
+   * `calibrate_and_evaluate.py`（CLI でベースライン登録・演技採点）、`self_test_voice_emo.py`（合成音声で自動検証）。
+2. **サーバー統合**:
+   * `config.json` に `emotion_mode`（`standard` / `detailed_12`）を追加。現在の設定は **`detailed_12`**。
+   * `GET /api/voice_emo_baseline`、`POST /api/calibrate_voice_emo` を追加。`analyze_audio` / `generate_scene` がモードに応じて分岐する。
+3. **未完了**: 仕様書の「③ 実機発声フェーズ」（人間による演技別の吹き込みと係数調整）の結果はまだ記録されていない。
+
+---
+
+### 【第23期】Phase 4 フロントエンド実装と「作りこみモード」ワークベンチの追加（2026-10-23〜24）
+1. **来場者 UI（`static/index.html` / `app.js` / `style.css`）**:
+   * 5 ステップウィザード（シーン選択 → 撮影（ガイド枠・3 秒カウント）→ 録音・セリフ確認 → 生成演出 → アートカード保存・印刷）。
+   * 12 感情モード時は上位 2 感情カードと全スコア展開表示。スタッフ設定モーダル（デバイス／モード切替／閾値／棒読み登録、シーン CRUD、稼働状態）。
+2. **作りこみモード（`/workbench`、`static/workbench.*`）**:
+   * 画質と本人同一性を詰めるためのチューニング画面。顔画像・音声を個別に分析し、VLM 結果・表情プロンプト・3 系統プロンプト（FD 案A/案B 切替）を直接編集して `POST /api/generate_custom` で生成。実行ステータスバー、生成履歴の復元付き。
+   * Phase 2 基準 4（画質の詰め）の作業場として位置付ける。
+3. **起動・運用**:
+   * `start_storyweaver.bat` / `.ps1`：サーバー別窓起動 → `/api/health` によるウォームアップ監視 → ブラウザ自動オープン。
+   * `GET /api/health` を追加。
+4. **実行痕跡**: `outputs/cards/` に 10/23 のデバッグフロー（scene_01〜03）、10/24 のウィザード（08:31）・ワークベンチ（11:16）の生成カードがある。ただし **Gate 4 の合否判定は未記録**。
+
+---
+
+### 【第24期】ドキュメント・ルール整備（運用マニュアル新設）
+1. `docs/OPERATION_MANUAL.md` を新設（構成、起動、来場者フロー、スタッフ設定、ワークベンチ、設定ファイル、停止、トラブルシューティング）。
+2. `AGENTS.md` §5-4 と `.agents/rules/error-prevention.md` §6 に「機能を変えたら運用マニュアルも必ず更新する」を追加。
+3. `config.json` の `BURNING_DB_THRESHOLD` を `-12.0` → **`-6.5`** に変更（Gate 3 実測 rms -6.55 dBFS 付近。変更理由の記録はなし）。
+4. 第13期の見直し計画の元資料 `Attached_doc/gemini-code-1792190494455.md` を作業ツリーから削除（Git 履歴 `e109d9c` には残っている）。
+
+---
+
+## 3. 現在のステータス（2026-10-24 時点）
+
+| Phase | 内容 | 状態 |
+| :--- | :--- | :--- |
+| Phase 1 | VLM 外見抽出 / SenseVoice | ✅ 完了（Gate 1-A・1-B 合格、VLM v2 再評価済み） |
+| Phase 2 | ComfyUI ワークフロー | ⏳ 基準 1〜3 合格。**基準 4 継続**：画質の詰め（ワークベンチで実施中）、**時間短縮（後半）は未着手** |
+| Phase 3 | FastAPI 2段階 API | ✅ 完了（Gate 3 ALL PASS、10/22） |
+| Phase 4 | 来場者 UI・スタッフ設定 | 🔧 実装済み・**Gate 4 未判定** |
+| 拡張 | 12感情モード（voice_emo） | 🔧 実装・統合済み・**実機発声による係数調整は未記録** |
+| Phase 5 | リハーサル・耐久 | ☐ 未着手 |
+
+### 3.1 判明しているドキュメント間の不整合（要修正）
+| 箇所 | 記載内容 | 実態 |
+| :--- | :--- | :--- |
+| `plans/README.md` Gate 4 | 全項目 ☐ | UI は実装済み。判定を実施して記録する必要がある |
+| `DEVELOPMENT_LOG.md` 第13期 | 元資料 `gemini-code-1792190494455.md` を参照 | 作業ツリーから削除済み（Git 履歴にあり） |
+
+### 3.2 Git 状態
+* 2026-10-24、第20期以降の成果物（`server.py`、`static/`、voice_emo 一式、運用マニュアル等）をコミット済み。
+* `OPERATION_MANUAL.md` の生成時間記載を実測（約 2 分）に修正済み。
+
+### 3.3 次の作業候補
+1. Phase 4 Gate 4 の 5 項目を実機で判定し `plans/README.md` に記録する。
+2. 12感情モードの実機発声テストと係数調整の結果を記録する。
+3. Phase 2 基準 4：ワークベンチで画質を確定 → ステップ数等を削減して目標生成時間を確定する。
+4. 上記 3.1 の不整合を解消する。
 
 
 

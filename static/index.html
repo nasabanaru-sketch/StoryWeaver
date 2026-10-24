@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StoryWeaver Live — リアルタイム顔転生＆台本朗読AIインスタレーション</title>
+  <meta name="description" content="来場者の顔写真と発話音声からリアルタイムにアニメ調キャラクターイラストとセリフ・朗読音声を同時生成する完全ローカル稼働型AIインスタレーション。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=Noto+Sans+JP:wght@300;400;500;700;900&family=Shippori+Mincho:wght@600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="theme-dark">
+  <div class="app-background">
+    <div class="bg-gradient-orb orb-1"></div>
+    <div class="bg-gradient-orb orb-2"></div>
+    <div class="bg-noise"></div>
+  </div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-branding">
+      <div class="brand-logo">
+        <span class="logo-symbol">✦</span>
+        <div class="logo-texts">
+          <h1 class="logo-title">StoryWeaver <span>Live</span></h1>
+          <span class="logo-sub">AI Creators Market Installation</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step Progress Indicator -->
+    <nav class="step-navigator" aria-label="体験進行ステップ">
+      <ol class="step-list">
+        <li class="step-item active" data-step="1">
+          <span class="step-num">1</span>
+          <span class="step-label">シーン選択</span>
+        </li>
+        <li class="step-connector"></li>
+        <li class="step-item" data-step="2">
+          <span class="step-num">2</span>
+          <span class="step-label">カメラ撮影</span>
+        </li>
+        <li class="step-connector"></li>
+        <li class="step-item" data-step="3">
+          <span class="step-num">3</span>
+          <span class="step-label">音声・セリフ</span>
+        </li>
+        <li class="step-connector"></li>
+        <li class="step-item" data-step="4">
+          <span class="step-num">4</span>
+          <span class="step-label">キャラクター召喚</span>
+        </li>
+        <li class="step-connector"></li>
+        <li class="step-item" data-step="5">
+          <span class="step-num">5</span>
+          <span class="step-label">アートカード</span>
+        </li>
+      </ol>
+    </nav>
+
+    <!-- Header Actions -->
+    <div class="header-actions">
+      <div id="vram-status-badge" class="badge badge-subtle">
+        <span class="dot dot-success"></span>
+        <span id="badge-system-text">System Ready</span>
+      </div>
+      <a href="/workbench" class="btn btn-icon btn-glass" title="画像の作りこみモード（ワークベンチ）" target="_blank" style="text-decoration:none;">
+        <span style="font-size:16px;">🎨</span>
+        <span class="btn-text">作りこみモード</span>
+      </a>
+      <button id="btn-open-staff-settings" class="btn btn-icon btn-glass" title="スタッフ用管理設定">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+        <span class="btn-text">スタッフ設定</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Wizard Content -->
+  <main class="wizard-container">
+
+    <!-- STEP 1: シーン選択 -->
+    <section id="step-1-scene" class="wizard-step active">
+      <div class="step-header text-center">
+        <h2 class="step-title">あなたが転生したい世界を選んでください</h2>
+        <p class="step-desc">壮大な物語の主人公として、世界観と最初の台本を決定します。</p>
+      </div>
+
+      <div id="scenes-grid" class="scenes-grid">
+        <!-- 動的描画 (JavaScript) -->
+      </div>
+    </section>
+
+    <!-- STEP 2: カメラ撮影 -->
+    <section id="step-2-camera" class="wizard-step">
+      <div class="step-header text-center">
+        <h2 class="step-title">カメラに顔を合わせて撮影してください</h2>
+        <p class="step-desc">頭部と輪郭をガイド枠に合わせることで、アニメへの転生精度が格段に向上します。</p>
+      </div>
+
+      <div class="camera-stage">
+        <div class="camera-viewfinder" id="camera-viewfinder">
+          <video id="camera-video" autoplay playsinline muted></video>
+          <canvas id="camera-canvas" class="hidden"></canvas>
+          <img id="camera-snapshot-preview" class="hidden" alt="撮影プレビュー">
+
+          <!-- 頭・肩ガイドオーバーレイ -->
+          <div class="guide-overlay" id="guide-overlay">
+            <svg class="guide-svg" viewBox="0 0 400 500" preserveAspectRatio="none">
+              <!-- コーナーガイド -->
+              <path class="guide-corner" d="M 30,70 L 30,30 L 70,30" />
+              <path class="guide-corner" d="M 370,70 L 370,30 L 330,30" />
+              <path class="guide-corner" d="M 30,430 L 30,470 L 70,470" />
+              <path class="guide-corner" d="M 370,430 L 370,470 L 330,470" />
+              
+              <!-- 頭部シルエット（楕円） -->
+              <ellipse cx="200" cy="180" rx="90" ry="120" class="guide-head" />
+              <!-- 首・肩ライン -->
+              <path d="M 160,290 C 140,340 70,370 20,410 L 20,490 L 380,490 L 380,410 C 330,370 260,340 240,290 Z" class="guide-shoulders" />
+            </svg>
+            <div class="guide-tip">
+              <span class="guide-icon">👤</span>
+              <span class="guide-text">枠に頭と肩を合わせて正面を向いてください</span>
+            </div>
+          </div>
+
+          <!-- カウントダウン演出 -->
+          <div id="camera-countdown" class="camera-countdown hidden">3</div>
+        </div>
+
+        <div class="camera-controls">
+          <button id="btn-switch-camera" class="btn btn-secondary btn-icon" title="カメラ切替">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            <span>カメラ切替</span>
+          </button>
+
+          <button id="btn-take-photo" class="btn btn-primary btn-large btn-shutter">
+            <span class="shutter-circle"></span>
+            <span class="btn-text">撮影する</span>
+          </button>
+
+          <div id="camera-review-actions" class="review-actions hidden">
+            <button id="btn-retake-photo" class="btn btn-glass">撮り直す</button>
+            <button id="btn-confirm-photo" class="btn btn-primary btn-glow">この写真で決定 ➔</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 3: 台本表示・録音 ＆ セリフ編集 -->
+    <section id="step-3-audio" class="wizard-step">
+      <div class="step-header text-center">
+        <h2 class="step-title">セリフを魂を込めて発声してください</h2>
+        <p class="step-desc">声の熱量・感情・音量をAIがリアルタイム解析し、キャラクターの表情へと宿します。</p>
+      </div>
+
+      <!-- VLM 非同期解析中通知バナー -->
+      <div id="vlm-status-banner" class="vlm-banner">
+        <div class="spinner-small"></div>
+        <span id="vlm-banner-text">裏側であなたの外見特徴（髪型・生え際・眼鏡）をAI解析中...</span>
+      </div>
+
+      <div class="audio-studio-layout">
+        <!-- 左側: シーン情報 & 録音スタジオ -->
+        <div class="studio-card audio-recorder-card">
+          <div class="card-chip" id="current-scene-chip">シーン: 覚醒の剣士</div>
+
+          <!-- 録音操作エリア -->
+          <div class="recorder-core">
+            <div class="record-pulse-container">
+              <button id="btn-record-toggle" class="btn-record-main">
+                <div class="record-icon-wrapper">
+                  <svg class="icon-mic" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" y1="19" x2="12" y2="22"></line>
+                    <line x1="8" y1="22" x2="16" y2="22"></line>
+                  </svg>
+                  <span class="icon-stop hidden">■</span>
+                </div>
+              </button>
+            </div>
+
+            <div class="record-status-label" id="record-status-label">マイクボタンを押して発声開始</div>
+            <div class="record-timer" id="record-timer">00:00</div>
+
+            <!-- リアルタイムオーディオビジュアライザー -->
+            <div class="visualizer-wrapper">
+              <canvas id="audio-visualizer-canvas" width="400" height="60"></canvas>
+            </div>
+
+            <!-- 音声解析結果バッジ (解析後表示) -->
+            <div id="audio-analysis-result" class="audio-analysis-result hidden">
+              <!-- 従来モード (standard) 表示 -->
+              <div id="result-standard-container" class="result-standard-container">
+                <div class="analysis-badge" id="emotion-badge">
+                  <span class="badge-icon" id="emotion-badge-icon">🔥</span>
+                  <span class="badge-label" id="emotion-badge-label">BURNING</span>
+                </div>
+                <div class="analysis-meter-info">
+                  <span>ピーク音量: <strong id="analysis-rms-text">-10.2 dBFS</strong></span>
+                  <span class="threshold-tag" id="analysis-threshold-tag">閾値突破</span>
+                </div>
+              </div>
+
+              <!-- 12感情・色気モード (detailed_12) 表示 -->
+              <div id="result-detailed-container" class="result-detailed-container hidden">
+                <div class="detailed-emo-header">
+                  <span class="detailed-title">✨ 検出された感情・色気（上位2特性）</span>
+                  <span class="analysis-time-badge" id="detailed-analysis-time">0.3s</span>
+                </div>
+
+                <div class="top-emotions-row">
+                  <!-- Top-1 感情 -->
+                  <div class="top-emo-card primary-emo" id="top1-emo-card">
+                    <div class="emo-card-header">
+                      <span class="emo-card-rank">TOP 1</span>
+                      <span class="emo-card-score"><strong id="top1-score">88.5</strong> pt</span>
+                    </div>
+                    <div class="emo-card-main">
+                      <span class="emo-card-icon" id="top1-icon">💋</span>
+                      <span class="emo-card-name" id="top1-name">色気・官能</span>
+                    </div>
+                    <div class="emo-bar-track">
+                      <div class="emo-bar-fill primary-fill" id="top1-bar"></div>
+                    </div>
+                  </div>
+
+                  <!-- Top-2 感情 -->
+                  <div class="top-emo-card secondary-emo" id="top2-emo-card">
+                    <div class="emo-card-header">
+                      <span class="emo-card-rank">TOP 2</span>
+                      <span class="emo-card-score"><strong id="top2-score">76.2</strong> pt</span>
+                    </div>
+                    <div class="emo-card-main">
+                      <span class="emo-card-icon" id="top2-icon">💖</span>
+                      <span class="emo-card-name" id="top2-name">愛情・親愛</span>
+                    </div>
+                    <div class="emo-bar-track">
+                      <div class="emo-bar-fill secondary-fill" id="top2-bar"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 詳細アコーディオン展開ボタン -->
+                <button type="button" id="btn-toggle-detailed-metrics" class="btn btn-text btn-small btn-toggle-metrics">
+                  <span>📊 7つの基礎指標 ＆ 12感情全スコアを表示</span>
+                  <span class="accordion-arrow">▼</span>
+                </button>
+
+                <!-- 折りたたみ詳細パネル -->
+                <div id="detailed-metrics-panel" class="detailed-metrics-panel hidden">
+                  <div class="metrics-block">
+                    <h5 class="metrics-block-title">7つの基礎指標 (基準=50pt)</h5>
+                    <div class="f7-grid" id="f7-metrics-grid">
+                      <!-- 動的描画 (JavaScript) -->
+                    </div>
+                  </div>
+
+                  <div class="metrics-block">
+                    <h5 class="metrics-block-title">12感情・色気スコア一覧</h5>
+                    <div class="e12-list" id="e12-metrics-list">
+                      <!-- 動的描画 (JavaScript) -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右側: セリフ確認・自由編集 -->
+        <div class="studio-card script-editor-card">
+          <div class="editor-header">
+            <h3 class="editor-title">セリフの決定・自由編集</h3>
+            <span class="editor-sub">音声認識テキストまたは手動タイピングで自由に修正できます</span>
+          </div>
+
+          <div class="script-input-wrapper">
+            <textarea id="script-input-textarea" rows="4" placeholder="ここにセリフが表示・入力されます..."></textarea>
+            <div class="script-tools">
+              <button id="btn-reset-script" class="btn btn-text btn-small">初期台本に戻す</button>
+              <span id="script-char-count" class="char-count">0 文字</span>
+            </div>
+          </div>
+
+          <div class="editor-tips">
+            <span class="tip-icon">💡</span>
+            <span class="tip-text">感情を込めて大声で叫ぶと、より気迫に満ちた迫真のイラストに変化します！</span>
+          </div>
+
+          <div class="studio-actions">
+            <button id="btn-back-to-camera" class="btn btn-glass">◀ 撮影に戻る</button>
+            <button id="btn-start-generation" class="btn btn-primary btn-large btn-glow">この内容でキャラクターを召喚！ ➔</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 4: キャラクター召喚中（生成演出） -->
+    <section id="step-4-generating" class="wizard-step">
+      <div class="generating-stage">
+        <!-- 召喚陣 / ルーンサークル -->
+        <div class="magic-circle-container" id="magic-circle-container">
+          <div class="magic-circle outer-ring"></div>
+          <div class="magic-circle middle-runes"></div>
+          <div class="magic-circle inner-star"></div>
+          <div class="summon-orb" id="summon-orb">
+            <div class="orb-core"></div>
+            <div class="orb-particles"></div>
+          </div>
+        </div>
+
+        <div class="generating-texts">
+          <div class="emotion-glow-tag" id="generating-emotion-tag">🔥 BURNING MODE</div>
+          <h2 class="generating-title" id="generating-status-title">顔特徴と魂のセリフを錬成中...</h2>
+          <p class="generating-desc" id="generating-status-desc">Animagine XL & InstantID 高精細パイプラインが稼働しています（最大約2分）</p>
+
+          <!-- プログレスバー -->
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" id="generating-progress-fill"></div>
+          </div>
+
+          <div class="pipeline-steps">
+            <div class="p-step active" id="p-step-1">外見特徴抽出</div>
+            <div class="p-arrow">➔</div>
+            <div class="p-step active" id="p-step-2">音声・感情解析</div>
+            <div class="p-arrow">➔</div>
+            <div class="p-step running" id="p-step-3">SDXL 構図生成</div>
+            <div class="p-arrow">➔</div>
+            <div class="p-step" id="p-step-4">FaceDetailer 表情彫刻</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 5: 完成アートカード表示 ＆ 保存・印刷 -->
+    <section id="step-5-card" class="wizard-step">
+      <div class="step-header text-center no-print">
+        <h2 class="step-title">あなたのアニメ転生キャラクターが誕生しました！</h2>
+        <p class="step-desc">記念カードをダウンロード保存またはその場でプリントアウトできます。</p>
+      </div>
+
+      <div class="card-display-layout">
+        <!-- アートカード本体（印刷対象） -->
+        <div class="art-card" id="printable-art-card">
+          <div class="card-inner-frame">
+            <!-- イラスト部分 -->
+            <div class="card-illustration-wrapper">
+              <img id="generated-card-image" class="card-image" src="" alt="生成イラスト">
+              <div class="card-emotion-watermark" id="card-emotion-badge">BURNING</div>
+            </div>
+
+            <!-- キャプション・セリフエリア -->
+            <div class="card-caption-container">
+              <div class="card-header-row">
+                <span class="card-scene-title" id="card-scene-title">覚醒の剣士</span>
+                <span class="card-brand">StoryWeaver Live</span>
+              </div>
+              <blockquote class="card-dialogue-quote">
+                <span class="quote-mark">“</span>
+                <span class="card-script-text" id="card-script-text">まだだ…俺は絶対に諦めない</span>
+                <span class="quote-mark">”</span>
+              </blockquote>
+              <div class="card-footer-row">
+                <span class="card-meta-date" id="card-meta-date">2026.10.23 AI Creators Market</span>
+                <span class="card-meta-inst">Insta-ID: SW-7749</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- コントロールパネル -->
+        <div class="card-actions-panel no-print">
+          <div class="panel-section">
+            <h3 class="panel-title">作品のお持ち帰り</h3>
+            <div class="panel-buttons">
+              <button id="btn-download-card" class="btn btn-primary btn-large btn-glow">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                <span>PNG アートカード保存</span>
+              </button>
+
+              <button id="btn-print-card" class="btn btn-secondary btn-large">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                <span>その場で印刷する</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="panel-section">
+            <h3 class="panel-title">次の来場者へ</h3>
+            <button id="btn-restart-experience" class="btn btn-glass btn-large">
+              <span>↻ もう一度あそぶ / 最初の画面へ</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- スタッフ用管理設定モーダル -->
+  <div id="staff-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h2 class="modal-title">⚙ スタッフ管理設定（現場調整用）</h2>
+          <span class="modal-sub">シーンプロンプト編集・マイク閾値キャリブレーション</span>
+        </div>
+        <button id="btn-close-staff-modal" class="btn-close" aria-label="閉じる">&times;</button>
+      </div>
+
+      <div class="modal-tabs">
+        <button class="modal-tab active" data-tab="tab-devices">マイク ＆ カメラ設定</button>
+        <button class="modal-tab" data-tab="tab-scenes">シーン作り込み (CRUD)</button>
+        <button class="modal-tab" data-tab="tab-system">システム稼働状態</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- タブ1: デバイス & マイク設定 -->
+        <div id="tab-devices" class="tab-pane active">
+          <div class="form-group">
+            <label for="select-camera" class="form-label">使用カメラ (videoinput)</label>
+            <select id="select-camera" class="form-select"></select>
+          </div>
+
+          <div class="form-group">
+            <label for="select-mic" class="form-label">使用マイク (audioinput)</label>
+            <select id="select-mic" class="form-select"></select>
+          </div>
+
+          <!-- 感情分析モード設定 -->
+          <div class="form-group mode-selection-group">
+            <label for="select-emotion-mode" class="form-label">感情分析エンジン・モード切替</label>
+            <select id="select-emotion-mode" class="form-select">
+              <option value="standard">従来モード（SenseVoice + 声量5段階判定：BURNING / COOL等）</option>
+              <option value="detailed_12">詳細12感情モード（3次元VAD + openSMILE eGeMAPSv02：色気・官能／慈愛等）</option>
+            </select>
+            <span class="form-hint">※ 「詳細12感情モード」を選択すると、息漏れ・声の柔らかさ・覚醒度から12種類の微細な感情・色気を解析しプロンプトへ反映します。</span>
+          </div>
+
+          <div class="calibration-box">
+            <h4 class="calib-title">🎙 マイク音量キャリブレーション ＆ BURNING 閾値調整 (従来モード用)</h4>
+            <p class="calib-desc">スタッフが実際にマイクへ発声し、どの音量で BURNING（昇格）に判定されるかをテストします。</p>
+
+            <div class="mic-level-meter-wrapper">
+              <div class="meter-labels">
+                <span>-60 dBFS</span>
+                <span id="meter-threshold-label">-12.0 dBFS (閾値)</span>
+                <span>0 dBFS</span>
+              </div>
+              <div class="meter-track">
+                <div id="meter-fill" class="meter-fill"></div>
+                <div id="meter-threshold-marker" class="meter-threshold-marker"></div>
+              </div>
+              <div class="meter-readout">
+                <span>現在音量: <strong id="meter-current-db">-60.0</strong> dBFS</span>
+                <span id="meter-live-verdict" class="verdict-tag verdict-cool">COOL判定</span>
+              </div>
+            </div>
+
+            <div class="slider-group">
+              <label for="slider-burning-threshold" class="slider-label">
+                <span>BURNING 昇格閾値: <strong id="slider-threshold-val">-12.0</strong> dBFS</span>
+                <span class="slider-hint">（値を下げると小さい声でも BURNING になりやすくなります）</span>
+              </label>
+              <input type="range" id="slider-burning-threshold" min="-30" max="-5" step="0.5" value="-12">
+            </div>
+
+            <button id="btn-save-threshold" class="btn btn-primary">設定を保存 (config.json)</button>
+          </div>
+
+          <!-- 12感情棒読みベースライン登録ボックス -->
+          <div class="calibration-box baseline-box" id="baseline-calibration-box">
+            <h4 class="calib-title">🎯 12感情・色気スコア用 棒読み基準値（ベースライン）登録</h4>
+            <p class="calib-desc">
+              「詳細12感情モード」では、この棒読み基準値を「50点」とし、来場者の声の変化（吐息・柔らかさ・熱量）を測定します。<br>
+              マイクボタンを押し、感情を込めずに平坦なトーンで3.5秒間セリフを発声してください。
+            </p>
+
+            <div class="baseline-status-card" id="baseline-status-card">
+              <div class="baseline-meta-row">
+                <span>登録状態: <strong id="baseline-status-text" class="text-success">登録済み</strong></span>
+                <span id="baseline-updated-at" class="meta-sub">最終更新: 未登録</span>
+              </div>
+              <div class="baseline-preview-chips" id="baseline-preview-chips">
+                <!-- JavaScriptで主要基準値を表示 -->
+              </div>
+            </div>
+
+            <div class="baseline-action-row">
+              <button id="btn-record-baseline" class="btn btn-secondary btn-icon">
+                <span class="btn-rec-dot"></span>
+                <span id="btn-record-baseline-text">マイクで棒読みを録音・登録 (3.5秒)</span>
+              </button>
+              <div id="baseline-record-progress" class="baseline-progress hidden">
+                <div class="spinner-small"></div>
+                <span id="baseline-progress-text">録音中... 残り 3 秒</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- タブ2: シーン管理 (CRUD) -->
+        <div id="tab-scenes" class="tab-pane">
+          <div class="scenes-admin-header">
+            <span class="admin-caption">展示シーン一覧の追加・編集・削除</span>
+            <button id="btn-add-new-scene" class="btn btn-secondary btn-small">+ 新規シーン追加</button>
+          </div>
+
+          <div id="admin-scenes-list" class="admin-scenes-list">
+            <!-- 動的描画 -->
+          </div>
+
+          <div class="admin-actions">
+            <button id="btn-save-all-presets" class="btn btn-primary btn-large">シーン一覧を保存 (presets.json)</button>
+          </div>
+        </div>
+
+        <!-- タブ3: システム情報 -->
+        <div id="tab-system" class="tab-pane">
+          <div class="sysinfo-grid">
+            <div class="sysinfo-card">
+              <span class="info-label">SenseVoiceSmall</span>
+              <strong class="info-val text-success" id="info-sensevoice">CPU Ready (VRAM 0MB)</strong>
+            </div>
+            <div class="sysinfo-card">
+              <span class="info-label">ComfyUI URL</span>
+              <strong class="info-val" id="info-comfy-url">http://localhost:8188</strong>
+            </div>
+            <div class="sysinfo-card">
+              <span class="info-label">Ollama モデル</span>
+              <strong class="info-val" id="info-ollama-model">gemma4:e2b</strong>
+            </div>
+            <div class="sysinfo-card">
+              <span class="info-label">アクティブセッション</span>
+              <strong class="info-val" id="info-sessions-count">0</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 顔未検出アラートモーダル -->
+  <div id="face-alert-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog modal-dialog-small alert-dialog">
+      <div class="alert-icon">⚠️</div>
+      <h3 class="alert-title">顔が検出できませんでした</h3>
+      <p class="alert-desc">
+        お顔が枠の外にあるか、暗さや手で隠れている可能性があります。<br>
+        頭と肩のガイド枠の中央に顔を合わせて、もう一度撮影してください。
+      </p>
+      <div class="alert-actions">
+        <button id="btn-alert-retry" class="btn btn-primary btn-large btn-glow">もう一度撮影する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

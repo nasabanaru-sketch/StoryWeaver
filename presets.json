@@ -1,0 +1,28 @@
+{
+  "scenes": [
+    {
+      "id": "scene_01",
+      "name": "覚醒の剣士",
+      "script_text": "まだだ…俺は絶対に諦めない",
+      "scene_prompt": "fantasy anime, dramatic battlefield, dynamic pose, drawing a glowing legendary sword, leaning forward, flying sparks, cinematic lighting"
+    },
+    {
+      "id": "scene_02",
+      "name": "大魔法の発動",
+      "script_text": "闇を照らせ、これが私の全力だ",
+      "scene_prompt": "magic academy anime, casting a giant arcane spell, glowing magic circle, floating debris, wind blowing, dynamic angle, vibrant colors"
+    },
+    {
+      "id": "scene_03",
+      "name": "サイバーパンクの切り札",
+      "script_text": "ターゲット捕捉。これよりシステムを突破する",
+      "scene_prompt": "cyberpunk anime, neon city night background, futuristic tactical gear, holographic visor display, cool action pose, high contrast"
+    },
+    {
+      "id": "scene_04",
+      "name": "栄光のフィナーレ",
+      "script_text": "みんな、本当にありがとう。最高の気分だ",
+      "scene_prompt": "bright fantasy festival, confetti and glowing light particles, triumphant pose, raising hand, warm sunlight, masterpiece scenery"
+    }
+  ]
+}

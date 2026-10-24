@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StoryWeaver Live — 画像の作りこみモード（チューニング・ワークベンチ）</title>
+  <meta name="description" content="人物画像分析・音声感情分析・シーン設定からComfyUIプロンプトまでの全中間データを可視化し、手動編集・再実行できる最適化ワークベンチ。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=Noto+Sans+JP:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/workbench.css">
+</head>
+<body class="theme-dark workbench-body">
+  <div class="app-background">
+    <div class="bg-gradient-orb orb-1"></div>
+    <div class="bg-gradient-orb orb-2"></div>
+    <div class="bg-noise"></div>
+  </div>
+
+  <!-- A. 実行ステータス・インジケータ（常時表示ヘッダー） -->
+  <header class="wb-header">
+    <div class="wb-header-branding">
+      <div class="wb-logo-group">
+        <span class="wb-logo-icon">🎨</span>
+        <div>
+          <h1 class="wb-title">StoryWeaver <span>Workbench</span></h1>
+          <span class="wb-sub">画像の作りこみ ＆ プロンプト最適化モード</span>
+        </div>
+      </div>
+      <a href="/" class="btn btn-glass btn-small wb-nav-back" title="展示用ウィザードへ戻る">◀ 展示モードへ</a>
+    </div>
+
+    <!-- リアルタイムステータスバー -->
+    <div class="wb-status-display">
+      <div class="wb-status-pill" id="wb-status-pill" data-state="idle">
+        <span class="wb-status-dot"></span>
+        <span class="wb-status-text" id="wb-status-text">待機中 (IDLE)</span>
+      </div>
+      <div class="wb-elapsed-display">
+        <span class="wb-elapsed-label">所要時間:</span>
+        <strong id="wb-elapsed-timer">0.0s</strong>
+      </div>
+      <div class="wb-vram-mini-display" id="wb-vram-display">
+        <span class="wb-vram-label">待機VRAM:</span>
+        <strong id="wb-vram-val">-- MB</strong>
+      </div>
+    </div>
+  </header>
+
+  <!-- エラーバナー（動的表示） -->
+  <div id="wb-error-banner" class="wb-error-banner hidden">
+    <span class="error-icon">⚠️</span>
+    <span class="error-msg" id="wb-error-msg">エラーが発生しました</span>
+    <button class="btn-close-error" id="btn-close-error">&times;</button>
+  </div>
+
+  <!-- メインワークベンチコンテナ (3カラム / パネル分割レイアウト) -->
+  <main class="wb-container">
+
+    <!-- B. シーン管理・プリセットパネル -->
+    <section class="wb-panel wb-panel-scene" id="panel-scene">
+      <div class="wb-panel-header">
+        <div class="panel-title-wrap">
+          <span class="panel-num">1</span>
+          <h2 class="panel-title">シーン設定 (CRUD)</h2>
+        </div>
+        <span class="panel-tag">presets.json</span>
+      </div>
+
+      <div class="wb-panel-body">
+        <div class="form-group">
+          <label for="wb-scene-select" class="form-label">プリセットシーン選択</label>
+          <div class="input-row">
+            <select id="wb-scene-select" class="form-select"></select>
+            <button id="wb-btn-load-scene" class="btn btn-secondary btn-small" title="選択シーンを再読込">再読込</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="form-row-2col">
+            <div>
+              <label for="wb-scene-id" class="form-label">シーンID (id)</label>
+              <input type="text" id="wb-scene-id" class="form-input" placeholder="scene_01">
+            </div>
+            <div>
+              <label for="wb-scene-name" class="form-label">シーン名 (name)</label>
+              <input type="text" id="wb-scene-name" class="form-input" placeholder="覚醒の剣士">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="wb-scene-script" class="form-label">台本セリフ (script_text)</label>
+          <textarea id="wb-scene-script" class="form-textarea" rows="2" placeholder="まだだ…俺は絶対に諦めない"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="wb-scene-prompt" class="form-label">シーンプロンプト (scene_prompt)</label>
+          <textarea id="wb-scene-prompt" class="form-textarea" rows="4" placeholder="fantasy anime, dramatic battlefield, dynamic pose..."></textarea>
+        </div>
+
+        <div class="scene-crud-actions">
+          <button id="wb-btn-save-current-scene" class="btn btn-primary btn-small">💾 このシーンを上書き保存</button>
+          <button id="wb-btn-add-scene" class="btn btn-secondary btn-small">+ 新規シーンとして追加</button>
+          <button id="wb-btn-delete-scene" class="btn btn-glass btn-small text-danger">🗑 削除</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- C. 人物画像（Face）入力・分析・プロンプト編集パネル -->
+    <section class="wb-panel wb-panel-face" id="panel-face">
+      <div class="wb-panel-header">
+        <div class="panel-title-wrap">
+          <span class="panel-num">2</span>
+          <h2 class="panel-title">人物画像 (Face) ＆ 外見分析</h2>
+        </div>
+        <span class="panel-tag">gemma4:e2b</span>
+      </div>
+
+      <div class="wb-panel-body">
+        <!-- 画像差し替え ＆ プレビュー -->
+        <div class="face-input-section">
+          <div class="face-dropzone" id="face-dropzone">
+            <img id="face-preview-img" class="face-preview hidden" src="" alt="顔写真プレビュー">
+            <div class="dropzone-placeholder" id="face-placeholder">
+              <span class="dropzone-icon">📷</span>
+              <p>画像ファイルをドラッグ＆ドロップ<br>またはクリックして選択</p>
+              <span class="dropzone-hint">(JPG, PNG, WebP)</span>
+            </div>
+            <input type="file" id="face-file-input" accept="image/*" class="hidden">
+          </div>
+
+          <!-- テスト画像クイックセットボタン -->
+          <div class="face-quick-set">
+            <span class="quick-set-label">テスト画像クイック選択:</span>
+            <div class="quick-set-buttons">
+              <button class="btn btn-glass btn-xs" data-face="koji-bose.jpg">坊主(koji-bose)</button>
+              <button class="btn btn-glass btn-xs" data-face="koji-women-.jpg">長髪(koji-women)</button>
+              <button class="btn btn-glass btn-xs" data-face="yae.jpg">短髪女性(yae)</button>
+            </div>
+          </div>
+
+          <div class="action-btn-wrap">
+            <button id="wb-btn-analyze-face" class="btn btn-primary btn-glow btn-full">
+              <span>🔍 人物画像分析を開始 (VLM)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- VLM分析結果（生JSON・属性・計測値） -->
+        <div class="analysis-results-card">
+          <div class="results-header">
+            <span class="sub-title">VLM抽出結果 ＆ メトリクス</span>
+            <span id="face-analysis-badge" class="badge-mini">未実行</span>
+          </div>
+
+          <div class="vlm-metrics-row" id="vlm-metrics-display">
+            <div class="metric-chip">所要時間: <strong id="vlm-time-val">-- ms</strong></div>
+            <div class="metric-chip">解放後VRAM: <strong id="vlm-vram-val">-- MB</strong></div>
+          </div>
+
+          <!-- 抽出属性テーブル/チップ -->
+          <div class="vlm-attributes-grid" id="vlm-attributes-grid">
+            <div class="attr-pill"><span class="k">face:</span><span class="v" id="attr-face">--</span></div>
+            <div class="attr-pill"><span class="k">gender:</span><span class="v" id="attr-gender">--</span></div>
+            <div class="attr-pill"><span class="k">length:</span><span class="v" id="attr-hair-len">--</span></div>
+            <div class="attr-pill"><span class="k">bangs:</span><span class="v" id="attr-bangs">--</span></div>
+            <div class="attr-pill"><span class="k">forehead:</span><span class="v" id="attr-forehead">--</span></div>
+            <div class="attr-pill"><span class="k">glasses:</span><span class="v" id="attr-glasses">--</span></div>
+            <div class="attr-pill"><span class="k">beard:</span><span class="v" id="attr-beard">--</span></div>
+          </div>
+
+          <details class="wb-details">
+            <summary>生JSON / 詳細レスポンス表示</summary>
+            <pre class="code-preview" id="vlm-raw-json">{}</pre>
+          </details>
+        </div>
+
+        <!-- 画像生成への入力内容編集（手動手直し可能） -->
+        <div class="prompt-edit-subgroup">
+          <h4 class="subgroup-title">画像生成用 外見プロンプト部品 (手動編集可)</h4>
+
+          <div class="form-group">
+            <label for="wb-input-gender" class="form-label">1. 性別タグ (gender_tag)</label>
+            <input type="text" id="wb-input-gender" class="form-input" value="1boy" placeholder="1boy / 1girl">
+          </div>
+
+          <div class="form-group">
+            <label for="wb-input-traits" class="form-label">2. 外見タグ列 (physical_traits)</label>
+            <textarea id="wb-input-traits" class="form-textarea" rows="3" placeholder="buzz cut, very short hair, dark hair, glasses, exposed forehead"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="wb-input-negbias" class="form-label">3. 前髪・短髪逆バイアス (negative_hair_bias)</label>
+            <textarea id="wb-input-negbias" class="form-textarea" rows="2" placeholder="(bangs:1.3), (fringe:1.3), hair over forehead"></textarea>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- D. 音声（Audio）入力・録音・再生・分析・プロンプト編集パネル -->
+    <section class="wb-panel wb-panel-audio" id="panel-audio">
+      <div class="wb-panel-header">
+        <div class="panel-title-wrap">
+          <span class="panel-num">3</span>
+          <h2 class="panel-title">音声 (Audio) ＆ 感情分析</h2>
+        </div>
+        <span class="panel-tag">SenseVoice / 12-Emo</span>
+      </div>
+
+      <div class="wb-panel-body">
+        <!-- 音声準備（ファイル or 録音） -->
+        <div class="audio-input-methods">
+          <!-- 系統1: ファイルアップロード -->
+          <div class="audio-method-box">
+            <span class="method-label">① WAVファイルからセット:</span>
+            <div class="input-row">
+              <input type="file" id="wb-audio-file-input" accept="audio/wav" class="form-file-input">
+            </div>
+            <!-- テスト音声クイックセット -->
+            <div class="audio-quick-buttons">
+              <span class="quick-set-label">テストWAV:</span>
+              <button class="btn btn-glass btn-xs" data-audio="01_shout.wav">叫び(01_shout)</button>
+              <button class="btn btn-glass btn-xs" data-audio="02_happy.wav">歓喜(02_happy)</button>
+              <button class="btn btn-glass btn-xs" data-audio="03_sad.wav">哀愁(03_sad)</button>
+              <button class="btn btn-glass btn-xs" data-audio="04_cool.wav">平常(04_cool)</button>
+            </div>
+          </div>
+
+          <!-- 系統2: マイク録音 -->
+          <div class="audio-method-box">
+            <span class="method-label">② マイクからリアルタイム録音 (16kHz WAV):</span>
+            <div class="form-group">
+              <select id="wb-select-mic" class="form-select form-select-sm"></select>
+            </div>
+            <div class="mic-rec-row">
+              <button id="wb-btn-mic-toggle" class="btn btn-secondary btn-small">
+                <span class="rec-dot"></span>
+                <span id="wb-rec-label">マイク録音開始</span>
+              </button>
+              <span id="wb-rec-timer" class="rec-timer">00.0s</span>
+              <div class="wb-level-meter">
+                <div id="wb-level-fill" class="wb-level-fill"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 音声再生プレイヤー -->
+          <div class="audio-player-box">
+            <span class="method-label">セットされた音声の試聴:</span>
+            <audio id="wb-audio-player" controls class="wb-audio-player"></audio>
+            <span id="wb-audio-info" class="audio-meta-text">音声未セット</span>
+          </div>
+
+          <div class="action-btn-wrap">
+            <button id="wb-btn-analyze-audio" class="btn btn-primary btn-glow btn-full">
+              <span>🎙 音声分析をスタート (SenseVoice / 12-Emo)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 音声分析結果確認 -->
+        <div class="analysis-results-card">
+          <div class="results-header">
+            <span class="sub-title">音声解析 ＆ 感情判定結果</span>
+            <span id="wb-audio-badge" class="badge-mini">未実行</span>
+          </div>
+
+          <!-- 分析モード切り替え -->
+          <div class="form-group" style="margin-bottom: 8px;">
+            <label for="wb-select-emotion-mode" class="form-label">感情分析エンジン:</label>
+            <div class="input-row">
+              <select id="wb-select-emotion-mode" class="form-select form-select-sm">
+                <option value="detailed_12">詳細12感情モード (3次元VAD + openSMILE eGeMAPSv02)</option>
+                <option value="standard">従来モード (SenseVoice + 声量5段階判定)</option>
+              </select>
+              <button id="wb-btn-save-mode" class="btn btn-glass btn-xs" title="config.jsonに保存">モード保存</button>
+            </div>
+          </div>
+
+          <!-- 12感情モード詳細カード (detailed_12用) -->
+          <div id="wb-detailed-12-card" class="wb-detailed-12-card hidden">
+            <div class="top-emotions-row">
+              <div class="top-emo-card primary-emo">
+                <div class="emo-card-header">
+                  <span class="emo-card-rank">TOP 1</span>
+                  <span class="emo-card-score"><strong id="wb-top1-score">--</strong> pt</span>
+                </div>
+                <div class="emo-card-main">
+                  <span class="emo-card-icon" id="wb-top1-icon">✨</span>
+                  <span class="emo-card-name" id="wb-top1-name">--</span>
+                </div>
+              </div>
+              <div class="top-emo-card secondary-emo">
+                <div class="emo-card-header">
+                  <span class="emo-card-rank">TOP 2</span>
+                  <span class="emo-card-score"><strong id="wb-top2-score">--</strong> pt</span>
+                </div>
+                <div class="emo-card-main">
+                  <span class="emo-card-icon" id="wb-top2-icon">✨</span>
+                  <span class="emo-card-name" id="wb-top2-name">--</span>
+                </div>
+              </div>
+            </div>
+
+            <details class="wb-details" style="margin-top: 8px;">
+              <summary>📊 7基礎音響指標 ＆ 12感情全スコアを展開</summary>
+              <div class="f7-grid" id="wb-f7-grid" style="margin-top: 6px;"></div>
+              <div class="e12-list" id="wb-e12-list" style="margin-top: 6px;"></div>
+            </details>
+          </div>
+
+          <!-- 基本結果グリッド -->
+          <div class="audio-results-grid" style="margin-top: 8px;">
+            <div class="res-item">
+              <span class="k">判定感情:</span>
+              <strong class="v" id="res-sense-emo">--</strong>
+            </div>
+            <div class="res-item">
+              <span class="k">ピーク音量 (rms_p90):</span>
+              <strong class="v" id="res-rms-db">-- dBFS</strong>
+            </div>
+            <div class="res-item">
+              <span class="k">判定ステート / ID:</span>
+              <strong class="v highlight" id="res-verdict">--</strong>
+            </div>
+            <div class="res-item">
+              <span class="k">文字起こし:</span>
+              <span class="v" id="res-recognized-text">（未認識）</span>
+            </div>
+          </div>
+
+          <!-- 閾値調整スライダー (config.json連動) -->
+          <div class="threshold-slider-box">
+            <div class="slider-header-row">
+              <label for="wb-burning-slider" class="form-label">BURNING 昇格閾値 (config.json):</label>
+              <span id="wb-threshold-val-text"><strong>-12.0</strong> dBFS</span>
+              <button id="wb-btn-save-threshold" class="btn btn-glass btn-xs">保存</button>
+            </div>
+            <input type="range" id="wb-burning-slider" min="-30" max="-5" step="0.5" value="-12">
+          </div>
+        </div>
+
+        <!-- 音声由来の生成入力内容編集 -->
+        <div class="prompt-edit-subgroup">
+          <h4 class="subgroup-title">音声由来 生成プロンプト部品 (手動編集可)</h4>
+
+          <div class="form-group">
+            <div class="label-with-actions">
+              <label for="wb-script-final" class="form-label">1. 確定セリフ (script_text)</label>
+              <div class="btn-group-mini">
+                <button id="wb-btn-restore-scene-script" class="btn btn-glass btn-xs" title="シーン初期セリフに戻す">事前セリフに戻す</button>
+                <button id="wb-btn-apply-recognized-script" class="btn btn-glass btn-xs" title="音声認識結果を反映">認識結果を反映</button>
+              </div>
+            </div>
+            <textarea id="wb-script-final" class="form-textarea" rows="2" placeholder="確定セリフ"></textarea>
+          </div>
+
+          <div class="form-group">
+            <div class="label-with-actions">
+              <label for="wb-input-expression" class="form-label">2. 表情プロンプト (expression_prompt)</label>
+              <div class="btn-group-mini">
+                <button class="btn btn-glass btn-xs btn-preset-expr" data-expr="BURNING">BURNING</button>
+                <button class="btn btn-glass btn-xs btn-preset-expr" data-expr="JOYFUL">JOYFUL</button>
+                <button class="btn btn-glass btn-xs btn-preset-expr" data-expr="EMOTIONAL">EMOTIONAL</button>
+                <button class="btn btn-glass btn-xs btn-preset-expr" data-expr="COOL">COOL</button>
+              </div>
+            </div>
+            <textarea id="wb-input-expression" class="form-textarea" rows="3" placeholder="shouting, fierce determination, intense eyes..."></textarea>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- E. 最終プロンプト統合・編集 ＆ 画像生成パネル（下部ワイド展開） -->
+  <footer class="wb-bottom-studio">
+    <div class="wb-bottom-header">
+      <div class="bottom-title-group">
+        <span class="panel-num">4</span>
+        <h2 class="bottom-title">ComfyUI 送信プロンプト 3系統 統合 ＆ 画像生成</h2>
+      </div>
+
+      <div class="bottom-controls">
+        <label class="toggle-control" title="部品が変更されたときに自動で3系統プロンプトを再組み立て">
+          <input type="checkbox" id="wb-auto-assemble-toggle" checked>
+          <span class="toggle-slider"></span>
+          <span class="toggle-label">自動統合連動</span>
+        </label>
+
+        <button id="wb-btn-manual-assemble" class="btn btn-secondary btn-small">
+          🔄 プロンプトを手動で再構築
+        </button>
+
+        <button id="wb-btn-start-generate" class="btn btn-primary btn-large btn-glow wb-btn-run">
+          <span class="btn-icon">⚡</span>
+          <span>この条件で画像生成を開始 (ComfyUI)</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 共通プロンプトパーツ（折りたたみ可能） -->
+    <details class="wb-common-parts-details" open>
+      <summary class="wb-details-summary">⚙ 共通プロンプトパーツ（Quality / Base Negative 設定）</summary>
+      <div class="common-parts-grid">
+        <div class="form-group">
+          <label for="wb-quality-prompt" class="form-label">quality_prompt</label>
+          <input type="text" id="wb-quality-prompt" class="form-input" value="masterpiece, best quality, very aesthetic, absurdres">
+        </div>
+        <div class="form-group">
+          <label for="wb-base-negative" class="form-label">base_negative_prompt</label>
+          <textarea id="wb-base-negative" class="form-textarea" rows="2">nsfw, lowres, (bad), text, error, fewer, extra, missing, worst quality, jpeg artifacts, low quality, watermark, unfinished, displeasing, oldest, early, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract], photorealistic, realistic, 3d</textarea>
+        </div>
+      </div>
+    </details>
+
+    <!-- 3系統プロンプト直接編集エリア -->
+    <div class="prompt-tri-grid">
+      <!-- 1. Node_Pos_Base (Node 5) -->
+      <div class="prompt-col">
+        <div class="prompt-col-header">
+          <span class="prompt-node-tag">Node 5 (Base Posi)</span>
+          <h4 class="prompt-col-title">Node_Pos_Base</h4>
+          <span class="prompt-rule">{gender}, solo, {traits}, {expr}, {scene}, {quality}</span>
+        </div>
+        <textarea id="wb-prompt-pos-base" class="form-textarea prompt-editor" rows="6"></textarea>
+      </div>
+
+      <!-- 2. Node_Neg_Base (Node 6) -->
+      <div class="prompt-col">
+        <div class="prompt-col-header">
+          <span class="prompt-node-tag">Node 6 (Base Nega)</span>
+          <h4 class="prompt-col-title">Node_Neg_Base</h4>
+          <span class="prompt-rule">{neg_bias}, {base_neg}</span>
+        </div>
+        <textarea id="wb-prompt-neg-base" class="form-textarea prompt-editor" rows="6"></textarea>
+      </div>
+
+      <!-- 3. Node_Pos_FD (Node 32) -->
+      <div class="prompt-col">
+        <div class="prompt-col-header">
+          <span class="prompt-node-tag">Node 32 (FD Posi)</span>
+          <h4 class="prompt-col-title">Node_Pos_FD (FaceDetailer)</h4>
+          <div class="fd-toggle-row">
+            <button id="wb-btn-fd-mode-b" class="btn btn-xs btn-primary" title="案B: 表情専念（正式採用）">案B(表情専念)</button>
+            <button id="wb-btn-fd-mode-a" class="btn btn-xs btn-glass" title="案A: 外見タグ含む（原案）">案A(外見包含)</button>
+          </div>
+        </div>
+        <textarea id="wb-prompt-pos-fd" class="form-textarea prompt-editor" rows="6"></textarea>
+      </div>
+    </div>
+
+    <!-- 生成結果 ＆ 簡易履歴モーダル / プレビューブロック -->
+    <div class="wb-result-stage" id="wb-result-stage">
+      <div class="result-display-grid">
+        <!-- 左: 生成画像プレビュー -->
+        <div class="result-image-pane">
+          <div class="result-image-wrapper" id="wb-image-wrapper">
+            <img id="wb-generated-image" class="wb-output-img hidden" src="" alt="生成イラスト">
+            <div class="result-placeholder" id="wb-image-placeholder">
+              <span class="empty-icon">🖼</span>
+              <p>「画像生成を開始」を押すと、ここに生成されたイラストがリアルタイム表示されます</p>
+            </div>
+            <!-- 生成中ローディングオーバーレイ -->
+            <div class="wb-generating-spinner hidden" id="wb-gen-spinner">
+              <div class="spinner-large"></div>
+              <span id="wb-gen-spinnerText">ComfyUI ワークフローを実行中...</span>
+            </div>
+          </div>
+
+          <div class="result-actions-bar">
+            <button id="wb-btn-download-result" class="btn btn-primary btn-small" disabled>
+              💾 イラストPNG保存
+            </button>
+            <span id="wb-saved-path-text" class="saved-path-info"></span>
+          </div>
+        </div>
+
+        <!-- 右: アートカード合成プレビュー & セッション内履歴 -->
+        <div class="result-meta-pane">
+          <div class="preview-card-preview-mini">
+            <span class="sub-title">合成カード表示確認</span>
+            <div class="card-caption-container mini-caption">
+              <div class="card-header-row">
+                <span class="card-scene-title" id="wb-card-scene-title">覚醒の剣士</span>
+                <span class="card-brand">StoryWeaver Live</span>
+              </div>
+              <blockquote class="card-dialogue-quote">
+                <span class="quote-mark">“</span>
+                <span class="card-script-text" id="wb-card-script-text">まだだ…俺は絶対に諦めない</span>
+                <span class="quote-mark">”</span>
+              </blockquote>
+            </div>
+          </div>
+
+          <!-- 履歴リスト -->
+          <div class="wb-history-box">
+            <div class="history-header">
+              <span class="sub-title">セッション内生成履歴 (クリックで条件復元)</span>
+              <button id="wb-btn-clear-history" class="btn btn-text btn-xs">履歴クリア</button>
+            </div>
+            <div class="history-list" id="wb-history-list">
+              <div class="empty-history">生成履歴はまだありません</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="/static/workbench.js"></script>
+</body>
+</html>

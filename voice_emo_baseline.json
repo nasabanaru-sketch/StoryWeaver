@@ -1,0 +1,15 @@
+{
+  "valence": 0.4459,
+  "arousal": 0.3952,
+  "dominance": 0.447,
+  "logRelF0-H1-H2": -1.2279,
+  "HNRdBACF": 4.5466,
+  "alphaRatioV": -11.8679,
+  "hammarbergIndexV": 19.5328,
+  "loudnessPeaksPerSec": 2.4169,
+  "duration_sec": 3.328,
+  "jitterLocal": 0.02,
+  "shimmerLocaldB": 0.95,
+  "calibrated_at": "2026-10-24T11:12:24.893089",
+  "samples_count": 1
+}
