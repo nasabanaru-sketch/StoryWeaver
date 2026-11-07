@@ -100,6 +100,11 @@
           <textarea id="wb-scene-prompt" class="form-textarea" rows="4" placeholder="fantasy anime, dramatic battlefield, dynamic pose..."></textarea>
         </div>
 
+        <div class="form-group">
+          <label for="wb-scene-neg-prompt" class="form-label">シーン別ネガティブプロンプト (scene_neg_prompt)</label>
+          <textarea id="wb-scene-neg-prompt" class="form-textarea" rows="2" placeholder="例: modern buildings, weapons（空欄時は共通ネガティブのみ適用）"></textarea>
+        </div>
+
         <div class="scene-crud-actions">
           <button id="wb-btn-save-current-scene" class="btn btn-primary btn-small">💾 このシーンを上書き保存</button>
           <button id="wb-btn-add-scene" class="btn btn-secondary btn-small">+ 新規シーンとして追加</button>
@@ -129,6 +134,68 @@
               <span class="dropzone-hint">(JPG, PNG, WebP)</span>
             </div>
             <input type="file" id="face-file-input" accept="image/*" class="hidden">
+          </div>
+
+          <!-- 現在セットされている入力画像ステータス＆自動クロップオプション -->
+          <div class="wb-face-source-bar">
+            <span id="wb-current-face-label" class="wb-current-face-label">入力画像: 未セット</span>
+            <label class="wb-autocrop-check" title="ローカルファイル選択時に自動で頭髪〜肩クロップを適用します">
+              <input type="checkbox" id="wb-auto-crop-check" checked>
+              <span>自動で頭髪〜肩クロップを適用する (auto_crop)</span>
+            </label>
+          </div>
+
+          <!-- ① カメラで撮影してクロップ機能 -->
+          <div class="wb-camera-capture-box">
+            <div class="wb-subbox-header">
+              <span class="method-label">① カメラで撮影して頭髪〜肩クロップ:</span>
+              <button type="button" id="wb-btn-toggle-camera" class="btn btn-secondary btn-xs">📷 カメラを起動</button>
+            </div>
+
+            <div id="wb-camera-panel" class="wb-camera-panel hidden">
+              <div class="form-group">
+                <select id="wb-select-camera" class="form-select form-select-sm"></select>
+              </div>
+
+              <!-- ライブプレビュー（頭・肩ガイド枠付き）またはクロップ確認プレビュー -->
+              <div class="wb-camera-viewfinder" id="wb-camera-viewfinder">
+                <video id="wb-camera-video" autoplay playsinline muted></video>
+                <canvas id="wb-camera-canvas" class="hidden"></canvas>
+                <img id="wb-camera-crop-preview" class="hidden" alt="クロップ確認プレビュー">
+
+                <!-- 頭・肩ガイド枠 -->
+                <div class="wb-guide-overlay" id="wb-guide-overlay">
+                  <svg class="guide-svg" viewBox="0 0 400 500" preserveAspectRatio="none">
+                    <path class="guide-corner" d="M 30,70 L 30,30 L 70,30" />
+                    <path class="guide-corner" d="M 370,70 L 370,30 L 330,30" />
+                    <path class="guide-corner" d="M 30,430 L 30,470 L 70,470" />
+                    <path class="guide-corner" d="M 370,430 L 370,470 L 330,470" />
+                    <ellipse cx="200" cy="180" rx="90" ry="120" class="guide-head" />
+                    <path d="M 160,290 C 140,340 70,370 20,410 L 20,490 L 380,490 L 380,410 C 330,370 260,340 240,290 Z" class="guide-shoulders" />
+                  </svg>
+                </div>
+              </div>
+
+              <div id="wb-camera-live-actions" class="wb-camera-actions">
+                <button type="button" id="wb-btn-capture-crop" class="btn btn-primary btn-small btn-full">✂️ 撮影してクロップ</button>
+              </div>
+
+              <div id="wb-camera-review-actions" class="wb-camera-actions hidden">
+                <button type="button" id="wb-btn-retake-camera" class="btn btn-glass btn-small">↺ 撮り直す</button>
+                <button type="button" id="wb-btn-use-cropped" class="btn btn-primary btn-small">✓ このクロップ画像を入力にセット</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ② 撮影済みクロップ画像リストから選択 -->
+          <div class="wb-captured-list-box">
+            <div class="wb-subbox-header">
+              <span class="method-label">② 撮影済みクロップ画像リストから選択:</span>
+              <button type="button" id="wb-btn-refresh-captured" class="btn btn-glass btn-xs" title="一覧を再読込">↻ 更新</button>
+            </div>
+            <div id="wb-captured-faces-grid" class="wb-captured-faces-grid">
+              <div class="wb-captured-empty">読み込み中...</div>
+            </div>
           </div>
 
           <!-- テスト画像クイックセットボタン -->
@@ -210,6 +277,85 @@
       </div>
 
       <div class="wb-panel-body">
+        <!-- 3点ボイスチェック（ベースライン＆アンカー登録） -->
+        <details class="wb-calib-details" id="wb-calib-details" open>
+          <summary class="wb-calib-summary">
+            <span class="wb-calib-title">🎙️ 3点ボイスチェック（ベースライン＆アンカー登録）</span>
+            <div class="wb-calib-badges">
+              <span id="wb-badge-normal" class="wb-vc-badge unregistered">①棒読み: 未登録</span>
+              <span id="wb-badge-power" class="wb-vc-badge optional">②張り声: オプション</span>
+              <span id="wb-badge-whisper" class="wb-vc-badge optional">③ささやき: オプション</span>
+            </div>
+          </summary>
+          <div class="wb-calib-body">
+            <div class="wb-calib-meta-row">
+              <span id="wb-calib-updated-at" class="wb-calib-updated">最終更新: 初期値</span>
+              <button type="button" id="wb-btn-reanalyze-after-calib" class="btn btn-glass btn-xs" title="現在のセット済み音声を最新ベースラインで再分析">🔄 セット済み音声を再分析</button>
+            </div>
+            <div id="wb-calib-chips" class="wb-calib-chips"></div>
+
+            <div class="wb-calib-grid">
+              <!-- ① 棒読み (normal) -->
+              <div class="wb-vc-card" data-wb-vc="normal">
+                <div class="wb-vc-head">
+                  <strong>① 棒読み（基準）</strong>
+                  <span class="wb-vc-tag req">必須・50pt</span>
+                </div>
+                <p class="wb-vc-guide">「本日は、ご来場いただき、ありがとうございます」と平坦に読む</p>
+                <div class="wb-vc-actions">
+                  <button type="button" class="btn btn-secondary btn-xs wb-btn-calib-rec" data-calib-mode="normal">
+                    <span class="rec-dot"></span>
+                    <span class="wb-calib-btn-label">① 棒読み録音</span>
+                  </button>
+                  <label class="btn btn-glass btn-xs wb-calib-file-label" title="WAVファイルで①棒読み基準を登録">
+                    <span>📂 WAV</span>
+                    <input type="file" accept="audio/wav" class="wb-calib-file-input hidden" data-calib-mode="normal">
+                  </label>
+                </div>
+              </div>
+
+              <!-- ② 張った声 (power) -->
+              <div class="wb-vc-card" data-wb-vc="power">
+                <div class="wb-vc-head">
+                  <strong>② 張った声（上限）</strong>
+                  <span class="wb-vc-tag opt">任意・上限</span>
+                </div>
+                <p class="wb-vc-guide">「いくぞ！これが私の全力だ！」と元気よく張った声で読む</p>
+                <div class="wb-vc-actions">
+                  <button type="button" class="btn btn-secondary btn-xs wb-btn-calib-rec" data-calib-mode="power">
+                    <span class="rec-dot"></span>
+                    <span class="wb-calib-btn-label">② 張り声録音</span>
+                  </button>
+                  <label class="btn btn-glass btn-xs wb-calib-file-label" title="WAVファイルで②張った声アンカーを登録">
+                    <span>📂 WAV</span>
+                    <input type="file" accept="audio/wav" class="wb-calib-file-input hidden" data-calib-mode="power">
+                  </label>
+                </div>
+              </div>
+
+              <!-- ③ ささやき声 (whisper) -->
+              <div class="wb-vc-card" data-wb-vc="whisper">
+                <div class="wb-vc-head">
+                  <strong>③ ささやき声（吐息）</strong>
+                  <span class="wb-vc-tag opt">任意・吐息</span>
+                </div>
+                <p class="wb-vc-guide">「ここだけの秘密だよ…」と内緒話のように息を混ぜて読む</p>
+                <div class="wb-vc-actions">
+                  <button type="button" class="btn btn-secondary btn-xs wb-btn-calib-rec" data-calib-mode="whisper">
+                    <span class="rec-dot"></span>
+                    <span class="wb-calib-btn-label">③ ささやき録音</span>
+                  </button>
+                  <label class="btn btn-glass btn-xs wb-calib-file-label" title="WAVファイルで③ささやき声アンカーを登録">
+                    <span>📂 WAV</span>
+                    <input type="file" accept="audio/wav" class="wb-calib-file-input hidden" data-calib-mode="whisper">
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div id="wb-calib-progress" class="wb-calib-progress hidden"></div>
+          </div>
+        </details>
+
         <!-- 音声準備（ファイル or 録音） -->
         <div class="audio-input-methods">
           <!-- 系統1: ファイルアップロード -->
@@ -225,6 +371,7 @@
               <button class="btn btn-glass btn-xs" data-audio="02_happy.wav">歓喜(02_happy)</button>
               <button class="btn btn-glass btn-xs" data-audio="03_sad.wav">哀愁(03_sad)</button>
               <button class="btn btn-glass btn-xs" data-audio="04_cool.wav">平常(04_cool)</button>
+              <button class="btn btn-glass btn-xs" data-audio="05_sultry.wav">吐息(05_sultry)</button>
             </div>
           </div>
 
@@ -267,35 +414,128 @@
             <span id="wb-audio-badge" class="badge-mini">未実行</span>
           </div>
 
-          <!-- 分析モード切り替え -->
+          <!-- 分析モード切り替え ＆ キャリブレーション状態 -->
           <div class="form-group" style="margin-bottom: 8px;">
-            <label for="wb-select-emotion-mode" class="form-label">感情分析エンジン:</label>
+            <div class="label-with-actions" style="margin-bottom: 4px;">
+              <label for="wb-select-emotion-mode" class="form-label" style="margin-bottom: 0;">感情分析エンジン:</label>
+              <span id="wb-audio-calib-chip" class="badge-mini" title="現在の棒読み基準（ベースライン）状態">基準: 未測定（初期値）</span>
+            </div>
             <div class="input-row">
               <select id="wb-select-emotion-mode" class="form-select form-select-sm">
-                <option value="detailed_12">詳細12感情モード (3次元VAD + openSMILE eGeMAPSv02)</option>
+                <option value="detailed_12">詳細感情モード (2階層方式：基本6表情＋ニュアンス修飾2種 / librosa)</option>
+                <option value="qwen2_audio_hybrid">Qwen2-Audio + Gemma 4 ハイブリッド (Step1: 聴覚知覚 ＋ Step2: 物理差分×Gemma4採点)</option>
                 <option value="standard">従来モード (SenseVoice + 声量5段階判定)</option>
               </select>
               <button id="wb-btn-save-mode" class="btn btn-glass btn-xs" title="config.jsonに保存">モード保存</button>
             </div>
           </div>
 
-          <!-- 12感情モード詳細カード (detailed_12用) -->
+          <!-- Qwen2-Audio 指示プロンプト調整パネル（qwen2_audio_hybrid時のみ有効・手動編集可） -->
+          <details class="wb-details wb-qwen-prompt-box" id="wb-qwen-prompt-details" style="margin-bottom: 10px;">
+            <summary>⚙️ Qwen2-Audio (Step 1) / Gemma 4 e2b (Step 2) プロンプト調整</summary>
+            <div class="wb-qwen-prompt-body" style="padding: 8px 0;">
+              <div class="form-group">
+                <div class="label-with-actions">
+                  <label for="wb-qwen-system-prompt" class="form-label">Step 1: Qwen2-Audio 聴覚質問プロンプト (英語)</label>
+                  <button type="button" id="wb-btn-reset-qwen-prompt" class="btn btn-glass btn-xs">初期プロンプトに戻す</button>
+                </div>
+                <textarea id="wb-qwen-system-prompt" class="form-textarea" rows="2" placeholder="What is the emotion of the speaker and does the speaker whisper or shout?"></textarea>
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label for="wb-qwen-custom-instruction" class="form-label">Step 2: Gemma 4 e2b への追加採点ルール (任意)</label>
+                <textarea id="wb-qwen-custom-instruction" class="form-textarea" rows="2" placeholder="Optional additional scoring instructions for Gemma 4 e2b..."></textarea>
+              </div>
+            </div>
+          </details>
+
+          <!-- Qwen2-Audio ハイブリッド分析結果カード (qwen2_audio_hybrid用) -->
+          <div id="wb-qwen-results-card" class="wb-qwen-results-card hidden">
+            <!-- ニュアンス要約 ＆ メトリクス -->
+            <div class="qwen-summary-banner">
+              <div class="qwen-nuance-tag-wrap">
+                <span class="qwen-label">Overall Impression:</span>
+                <span id="wb-qwen-nuance-badge" class="qwen-nuance-badge">--</span>
+              </div>
+              <div class="qwen-metrics-chips">
+                <span class="metric-chip">推論合計: <strong id="wb-qwen-time-val">-- s</strong></span>
+                <span class="metric-chip">Qwen2 VRAM: <strong id="wb-qwen-vram-val">-- MB</strong></span>
+              </div>
+            </div>
+
+            <!-- Step 1: Qwen2-Audio 感情・発声読み取り結果 (英語そのまま表示) -->
+            <div class="qwen-comment-card">
+              <div class="qwen-comment-head">
+                <span class="qwen-avatar-icon">🎙️</span>
+                <span class="qwen-comment-title">Step 1: Qwen2-Audio 感情・発声読み取り結果 (Acoustic Perception - EN)</span>
+              </div>
+              <p id="wb-qwen-perception-en" class="qwen-comment-body" style="font-family: 'JetBrains Mono', monospace; font-size: 12px;">--</p>
+            </div>
+
+            <!-- Step 2 Input: Gemma 4 e2b へ渡す物理量分析内容 (Semantic Bridge - 英語そのまま表示) -->
+            <div class="qwen-comment-card" style="border-left-color: #38bdf8;">
+              <div class="qwen-comment-head">
+                <span class="qwen-avatar-icon">📐</span>
+                <span class="qwen-comment-title" style="color: #7dd3fc;">Step 2 Input: Gemma 4 e2b 投入物理分析 (Physical Voice Analysis / Semantic Bridge - EN)</span>
+              </div>
+              <p id="wb-qwen-semantic-bridge-en" class="qwen-comment-body" style="white-space: pre-line; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; line-height: 1.5;">--</p>
+            </div>
+
+            <!-- 棒読み基準からの物理変化メーター -->
+            <div class="qwen-deltas-card">
+              <div class="deltas-title">📊 棒読み基準からの物理変化メーター (baseline_deltas)</div>
+              <div class="deltas-grid" id="wb-qwen-deltas-grid">
+                <!-- JSで動的描画 -->
+              </div>
+            </div>
+
+            <!-- 2階層感情（Primary / Nuance）ハイライトカード -->
+            <div class="top-emotions-row" style="margin-top: 8px;">
+              <div class="top-emo-card primary-emo" id="wb-qwen-top1-card">
+                <div class="emo-card-header">
+                  <span class="emo-card-rank">PRIMARY</span>
+                  <span class="emo-card-score" id="wb-qwen-top1-score-wrap"><strong id="wb-qwen-top1-score">--</strong> pt</span>
+                </div>
+                <div class="emo-card-main">
+                  <span class="emo-card-icon" id="wb-qwen-top1-icon">✨</span>
+                  <span class="emo-card-name" id="wb-qwen-top1-name">--</span>
+                </div>
+              </div>
+              <div class="top-emo-card secondary-emo" id="wb-qwen-top2-card">
+                <div class="emo-card-header">
+                  <span class="emo-card-rank" id="wb-qwen-top2-rank">NUANCE</span>
+                  <span class="emo-card-score" id="wb-qwen-top2-score-wrap"><strong id="wb-qwen-top2-score">--</strong> pt</span>
+                </div>
+                <div class="emo-card-main">
+                  <span class="emo-card-icon" id="wb-qwen-top2-icon">✨</span>
+                  <span class="emo-card-name" id="wb-qwen-top2-name">--</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 8感情スコア一覧アコーディオン -->
+            <details class="wb-details" style="margin-top: 8px;">
+              <summary>📈 8感情スコア一覧（基本6感情＋修飾2種）</summary>
+              <div class="e12-list" id="wb-qwen-e8-list" style="margin-top: 6px;"></div>
+            </details>
+          </div>
+
+          <!-- 2階層感情モード詳細カード (detailed_12用) -->
           <div id="wb-detailed-12-card" class="wb-detailed-12-card hidden">
             <div class="top-emotions-row">
-              <div class="top-emo-card primary-emo">
+              <div class="top-emo-card primary-emo" id="wb-top1-card">
                 <div class="emo-card-header">
-                  <span class="emo-card-rank">TOP 1</span>
-                  <span class="emo-card-score"><strong id="wb-top1-score">--</strong> pt</span>
+                  <span class="emo-card-rank">PRIMARY</span>
+                  <span class="emo-card-score" id="wb-top1-score-wrap"><strong id="wb-top1-score">--</strong> pt</span>
                 </div>
                 <div class="emo-card-main">
                   <span class="emo-card-icon" id="wb-top1-icon">✨</span>
                   <span class="emo-card-name" id="wb-top1-name">--</span>
                 </div>
               </div>
-              <div class="top-emo-card secondary-emo">
+              <div class="top-emo-card secondary-emo" id="wb-top2-card">
                 <div class="emo-card-header">
-                  <span class="emo-card-rank">TOP 2</span>
-                  <span class="emo-card-score"><strong id="wb-top2-score">--</strong> pt</span>
+                  <span class="emo-card-rank" id="wb-top2-rank">NUANCE</span>
+                  <span class="emo-card-score" id="wb-top2-score-wrap"><strong id="wb-top2-score">--</strong> pt</span>
                 </div>
                 <div class="emo-card-main">
                   <span class="emo-card-icon" id="wb-top2-icon">✨</span>
@@ -305,9 +545,13 @@
             </div>
 
             <details class="wb-details" style="margin-top: 8px;">
-              <summary>📊 7基礎音響指標 ＆ 12感情全スコアを展開</summary>
+              <summary>📊 7基礎音響指標 ＆ 全8項目（基本6＋修飾2）＆ 生特徴量(16項目)を展開</summary>
               <div class="f7-grid" id="wb-f7-grid" style="margin-top: 6px;"></div>
               <div class="e12-list" id="wb-e12-list" style="margin-top: 6px;"></div>
+              <div class="wb-raw-features-wrap" style="margin-top: 8px;">
+                <div class="wb-raw-title">🔬 生特徴量 (raw_features 16項目 vs 現在ベースライン)</div>
+                <div class="wb-raw-grid" id="wb-raw-features-grid"></div>
+              </div>
             </details>
           </div>
 
@@ -384,6 +628,14 @@
       </div>
 
       <div class="bottom-controls">
+        <div class="wb-workflow-selector">
+          <label for="wb-workflow-select" class="wb-workflow-label">使用ワークフロー JSON:</label>
+          <select id="wb-workflow-select" class="form-select form-select-sm wb-workflow-select">
+            <option value="storyweaver_anime_api.json">標準 (FaceDetailer あり / 30+20 steps)</option>
+            <option value="storyweaver_anime_nofd_api.json">高速 (FaceDetailer なし / 30 steps)</option>
+          </select>
+        </div>
+
         <label class="toggle-control" title="部品が変更されたときに自動で3系統プロンプトを再組み立て">
           <input type="checkbox" id="wb-auto-assemble-toggle" checked>
           <span class="toggle-slider"></span>
@@ -392,6 +644,11 @@
 
         <button id="wb-btn-manual-assemble" class="btn btn-secondary btn-small">
           🔄 プロンプトを手動で再構築
+        </button>
+
+        <button id="wb-btn-qwen-unload" class="btn btn-secondary btn-large" title="Qwen2-Audio が保持している VRAM（約6GB）を解放し、ComfyUI の実行メモリを確保します">
+          <span class="btn-icon">🧹</span>
+          <span>Qwen2 VRAM解放</span>
         </button>
 
         <button id="wb-btn-start-generate" class="btn btn-primary btn-large btn-glow wb-btn-run">
@@ -433,15 +690,18 @@
         <div class="prompt-col-header">
           <span class="prompt-node-tag">Node 6 (Base Nega)</span>
           <h4 class="prompt-col-title">Node_Neg_Base</h4>
-          <span class="prompt-rule">{neg_bias}, {base_neg}</span>
+          <span class="prompt-rule">{neg_bias}, {scene_neg}, {base_neg}</span>
         </div>
         <textarea id="wb-prompt-neg-base" class="form-textarea prompt-editor" rows="6"></textarea>
       </div>
 
       <!-- 3. Node_Pos_FD (Node 32) -->
-      <div class="prompt-col">
+      <div class="prompt-col" id="wb-col-pos-fd">
         <div class="prompt-col-header">
-          <span class="prompt-node-tag">Node 32 (FD Posi)</span>
+          <div class="prompt-node-tag-row">
+            <span class="prompt-node-tag">Node 32 (FD Posi)</span>
+            <span id="wb-fd-disabled-badge" class="wb-fd-disabled-badge hidden">FDなしJSON選択中は未使用</span>
+          </div>
           <h4 class="prompt-col-title">Node_Pos_FD (FaceDetailer)</h4>
           <div class="fd-toggle-row">
             <button id="wb-btn-fd-mode-b" class="btn btn-xs btn-primary" title="案B: 表情専念（正式採用）">案B(表情専念)</button>

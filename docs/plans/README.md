@@ -87,12 +87,14 @@ sequenceDiagram
 
 ### 3.1 シーンプリセット（`presets.json`）
 
-| ID | シーン | 台本セリフ | `scene_prompt` |
-| :--- | :--- | :--- | :--- |
-| `scene_01` | 覚醒の剣士 | 「まだだ…俺は絶対に諦めない」 | `fantasy anime, dramatic battlefield, dynamic pose, drawing a glowing legendary sword, leaning forward, flying sparks, cinematic lighting` |
-| `scene_02` | 大魔法の発動 | 「闇を照らせ、これが私の全力だ」 | `magic academy anime, casting a giant arcane spell, glowing magic circle, floating debris, wind blowing, dynamic angle, vibrant colors` |
-| `scene_03` | サイバーパンクの切り札 | 「ターゲット捕捉。これよりシステムを突破する」 | `cyberpunk anime, neon city night background, futuristic tactical gear, holographic visor display, cool action pose, high contrast` |
-| `scene_04` | 栄光のフィナーレ | 「みんな、本当にありがとう。最高の気分だ」 | `bright fantasy festival, confetti and glowing light particles, triumphant pose, raising hand, warm sunlight, masterpiece scenery` |
+| ID | シーン | 台本セリフ | `scene_prompt` | `scene_neg_prompt`（任意） |
+| :--- | :--- | :--- | :--- | :--- |
+| `scene_01` | 赤ずきんちゃん | 「おまえを　一口で飲み込んでしまうためだ」 | `dark fairytale anime, spooky forest background, upper body, looking at viewer, dynamic foreshortening, stylized wolf costume, wolf ears hood, lunging forward, dramatic pose, cinematic backlighting, rim light` | `""`（例: `modern buildings, cars` 等をシーン別に指定可） |
+| `scene_02` | 大魔法の発動 | 「闇を照らせ、これが私の全力だ」 | `magic academy anime, casting a giant arcane spell, glowing magic circle, floating debris, wind blowing, dynamic angle, vibrant colors` | `""` |
+| `scene_03` | サイバーパンクの切り札 | 「ターゲット捕捉。これよりシステムを突破する」 | `cyberpunk anime, neon city night background, futuristic tactical gear, holographic visor display, cool action pose, high contrast` | `""` |
+| `scene_04` | 栄光のフィナーレ | 「みんな、本当にありがとう。最高の気分だ」 | `bright fantasy festival, confetti and glowing light particles, triumphant pose, raising hand, warm sunlight, masterpiece scenery` | `""` |
+
+- `scene_neg_prompt`: シーン固有で排除したい要素（例: ファンタジー世界における現代建築・銃器など）を指定する文字列フィールド（初期値 `""`）。空欄時は共通ネガティブ（`NEG_BASE`）および外見逆バイアス（`negative_hair_bias`）のみが適用される。
 
 ### 3.2 感情 × 声量 → 表情プロンプト
 
@@ -111,11 +113,12 @@ sequenceDiagram
 | 系統 | テンプレート |
 | :--- | :--- |
 | `Node_Pos_Base` | `{gender_tag}, solo, {physical_traits}, {expression_prompt}, {scene_prompt}, masterpiece, best quality, very aesthetic, absurdres` |
-| `Node_Neg_Base` | `{negative_hair_bias}, nsfw, lowres, (bad), text, error, fewer, extra, missing, worst quality, jpeg artifacts, low quality, watermark, unfinished, displeasing, oldest, early, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract], photorealistic, realistic, 3d` |
+| `Node_Neg_Base` | `{negative_hair_bias}, {scene_neg_prompt}, nsfw, lowres, (bad), text, error, fewer, extra, missing, worst quality, jpeg artifacts, low quality, watermark, unfinished, displeasing, oldest, early, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract], photorealistic, realistic, 3d`（※空の要素は除外して `, ` 結合） |
 | `Node_Pos_FD`（**案B: 表情専念・正式採用**） | `{gender_tag}, solo, close-up, face focus, {expression_prompt}, detailed anime eyes, masterpiece, best quality, very aesthetic, absurdres`（`{physical_traits}` の髪型・眼鏡タグを除外） |
 | `Node_Pos_FD`（案A: 参考・原案） | `{gender_tag}, solo, close-up, face focus, {physical_traits}, {expression_prompt}, detailed anime eyes, masterpiece, best quality, very aesthetic, absurdres`（`{scene_prompt}` は除外） |
 
 - `{negative_hair_bias}`: 前髪なし判定時に `(bangs:1.3), (fringe:1.3), hair over forehead` を自動挿入（超短髪時は `ahoge, spiky hair, hair over ears, (bob cut:1.2)` を追加）。
+- `{scene_neg_prompt}`: シーン別に設定された追加ネガティブプロンプト（`presets.json` の `scene_neg_prompt`）。空文字でない場合のみ `{negative_hair_bias}` の直後・共通 `NEG_BASE` の直前に結合される。
 - **FD プロンプトの確定（案B）**: FaceDetailer は `bbox_crop_factor: 1.4` の狭いクロップを `denoise: 0.25〜0.28` で再描画するため、頭髪・眼鏡は Base 生成結果が維持される。髪型・眼鏡タグの再注入による二重描画を防ぐため、**案B（表情専念）を正式採用**。
 - 最終的な品質タグ等の詳細調整はプロンプト修正にて継続。
 
@@ -455,3 +458,168 @@ graph LR
 - 各 Phase の詳細手順・実行記録は、その Phase 着手時に本書の該当節へ追記する。
 - 意思決定は [DEVELOPMENT_LOG.md](file:///c:/antigravity/StoryWeaver/docs/DEVELOPMENT_LOG.md) に記録し、Git コミットする。
 - 旧 Phase 3 の検証記録は [phase3_revision_plan.md](file:///c:/antigravity/StoryWeaver/docs/plans/phase3_revision_plan.md)（アーカイブ）を参照。
+
+---
+
+## 7. 商用利用可能化 改修計画（2026-10-26 追加）
+
+イベント会場で生成イラストを有償販売するため、非商用ライセンスのモデル・ツールを排除する。
+
+### 7.1 排除対象・維持対象
+
+| 区分 | 対象 | ライセンス | 対応 |
+| :--- | :--- | :--- | :--- |
+| 排除 | `audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim` | CC-BY-NC-SA 4.0 | `voice_emo_analyzer.py` から削除 → librosa/scipy/numpy 実装へ |
+| 排除 | `openSMILE` (eGeMAPSv02) | audEERING Research License | 同上 |
+| 排除 | `InsightFace antelopev2` / `InstantID`（`ip-adapter.bin`, ControlNet `diffusion_pytorch_model.safetensors`） | 非商用 | ワークフロー Node 13/14/17/18/25 を削除 |
+| 維持 | `gemma4:e2b`, `iic/SenseVoiceSmall`, `animagine-xl-3.1 FP8`, `ip-adapter-plus-face_sdxl_vit-h`, `CLIP-ViT-H-14-laion2B`, `bbox/face_yolov8m.pt`, `"standard"` モード | 商用可（YOLO はオフライン稼働のため現状維持） | 変更なし |
+
+### 7.2 不変条件
+- `server.py` のエンドポイント仕様、`"standard"` モード（SenseVoice + `rms_p90`）は変更しない。
+- ワークフロー主要ノード番号 `1, 2, 5, 6, 8, 9, 12, 20, 22, 27, 28, 29, 32` は維持。
+- `voice_emo_analyzer` の公開 IF（`get_voice_emo_analyzer`, `warmup`, `baseline`, `calibrate_baseline`, `analyze` と返却キー）は維持。
+
+### 7.3 進捗チェックリスト
+
+- [x] **Phase A**: 現行コード確認・計画記載（本節 / DEVELOPMENT_LOG 第25期）
+- [x] **Phase B**: `voice_emo_analyzer.py` を librosa/scipy/numpy のみの 7 特徴量エンジンへ刷新（`detailed_12`）
+  - [x] B-1 wav2vec2 / openSMILE / torch / transformers の import 削除（`voice_emo_config.json` の `model_name` も削除）
+  - [x] B-2 7 特徴（arousal / dominance / valence / breathiness(HNR) / jitter / shimmer / pitch）実装
+  - [x] B-3 12 感情スコア・上位2ブレンドプロンプト生成（w2 = w1×top2/top1、比 < 0.80 なら FD は主感情のみ）
+  - [x] B-4 UI ラベル（`app.js` / `workbench.js`）を新 7 特徴キーへ追従／`server.py` は SenseVoice 感情を `analyze(wav, sense_emo)` で Valence 補助に渡す 1 行のみ変更
+  - [x] B-5 単体テスト：`test_assets/audio` 4 本で `analyze` **0.022〜0.034s**、`calibrate_baseline` 0.028s、返却キー・12感情/7特徴の件数・無音入力すべて OK（初回ウォームアップは numba JIT で約 26s、サーバ起動時に実施）
+- [x] **Phase C**: `storyweaver_anime_api.json` から InstantID 系（13/14/17/18/25）削除、IP-Adapter Plus Face 2 系統化
+  - Base `"29"`: weight 0.60 / end_at 0.75 / linear / V only → `"2"` KSampler `model`（positive `"5"`, negative `"6"`）
+  - FD `"30"`（新規 `IPAdapter Advanced FD`）: weight 0.40 / end_at 0.75 / V only → `"20"` FaceDetailer `model`（positive `"32"`, negative `"6"`, bbox `"22"`）
+  - 検証：未解決参照 0、`InstantID` 文字列 0、主要ノード全存在、`server.build_workflow()` 正常
+  - ⚠ 実機 ComfyUI での画質・本人同一性の再評価は未実施（Gate 2 基準 1 の再判定が必要）
+- [x] **Phase D**: `verify_step1_vlm.py` 外見タグ拡張（目・眉の印象）と統合検証・完了記録
+  - D-1 Pydantic スキーマ拡張: `eye_shape` (`tsurime`, `tareme`, `narrow eyes`, `none`) および `eyebrows` (`thick eyebrows`, `thin eyebrows`, `none`) を既定値付き任意フィールドとして追加。省略時にもパースエラー 0% を維持。
+  - D-2 `rule_based_transform`: 目・眉のタグ（`none` 除外）を `physical_traits` に安全に追加。表情語の除外・髪型逆バイアスロジックは完全維持。
+  - D-3 統合テスト:
+    - `verify_step1_vlm.py`: `gemma4:e2b` による実機推論（`koji-bose.jpg`）でパースエラー 0%、VRAM解放確認。
+    - `self_test_voice_emo.py`: 合成音声 A/B/C 全テスト PASS（推論時間 約 0.02s、VRAM増分 0.00 MB）。
+    - `server.py` TestClient API 統合テスト: `standard` / `detailed_12` 両モード、`calibrate_voice_emo` 全エンドポイント 200 OK。
+    - `storyweaver_anime_api.json`: JSON 構造・ノード接続・dangling 参照 0・`build_workflow` 整合性確認。
+
+---
+
+## 8. 商用化移行に伴う未対応課題・改善点バックログ（2026-10-27 整理）
+
+商用化改修（Phase A〜D）の完了に伴い洗い出された、今後の改善・対策検討用の未対応課題一覧です。
+優先順位付けと対策実施の検討用として、影響範囲別に分類して記録します。
+
+### カテゴリ 1: 展示運用・即時設定確認（現場稼働前の必須確認・即時対策）
+
+- [ ] **課題 1-1: VLM判定の髪型認識後退の検証と再評価**
+  - **内容**: 目・眉属性追加後の実機テストにおいて、`koji-bose.jpg` が `short hair` と判定され超短髪ネガティブが付与されない事象が発生した。
+  - **改善点**: テスト3画像（`koji-bose.jpg`, `koji-women-.jpg`, `yae.jpg`）で再評価を実行し、スキーマ定義やシステムプロンプトの調整（目・眉タグ追加による注意散漫の抑制、髪型判定基準の再強化）要否を検証する。
+- [x] **課題 1-2: `voice_emo_baseline.json` の実声再キャリブレーション**（※2026-11-01 `DEFAULT_BASELINE` の健全な初期値にクリーン初期化＋来場者ごとの3点ボイスチェックUI［`normal`/`power`/`whisper`］および `test_assets/calibrated_samples/latest_{mode}.wav` 自動保存を実装完了）
+  - **内容**: API統合テスト実行時に合成音声（`voice_A_standard.wav`）を送信したため、基準ファイルが合成音パラメータで上書きされている。
+  - **改善点**: イベント展示運用前、または実機テスト前に、実際の発話者の声（平坦な棒読み＋任意の張り声・ささやき声）を用いてベースラインの再録音・登録（Step 3・スタッフ設定・ワークベンチの3点ボイスチェック UI または `POST /api/calibrate_voice_emo`）を実施する。
+- [ ] **課題 1-3: `config.json` の本番稼働モード確認**
+  - **内容**: APIテストのクリーンアップ処理により、`config.json` の `emotion_mode` が `"standard"` に設定されている。
+  - **改善点**: 本番イベントで「従来モード（`standard`）」と「詳細12感情モード（`detailed_12`）」のどちらをデフォルト起動とするか方針を決定し、設定ファイルおよびUI選択状態を確認・調整する。
+
+### カテゴリ 2: 生成品質・本人同一性（ComfyUI実機評価・画質チューニング）
+
+- [ ] **課題 2-1: IP-Adapter Plus Face 単独構成における実機画質・本人同一性の再評価**
+  - **内容**: InstantID（骨格拘束・顔特徴埋め込み）を完全排除し、`IP-Adapter Plus Face` の2系統（Base: weight 0.60 / FD: weight 0.40）のみとした構成での、ComfyUI 実機生成イラストが未評価。
+  - **改善点**: Gate 2 基準1（髪型・眼鏡・顔立ち・動的構図・表情の両立）に照らし、実機生成での本人認識性・画質崩れの有無を検証し、必要に応じて IP-Adapter の weight / end_at やサンプラーステップ数を微調整する。
+
+### カテゴリ 3: 音響・感情解析アルゴリズム改善（精度・安定性向上）
+
+- [x] **課題 3-1: `server.py` の `generate_scene` への SenseVoice 感情タグ引き渡し（整合性修正）**（※§9 Step 2 で修正完了）
+  - **内容**: `server.py` の `analyze_audio` では SenseVoice 感情タグを `analyzer.analyze(wav, sense_emo)` に渡して Valence 補助バイアスを適用しているが、`generate_scene` の直接音声入力ルート（L674付近）では `sense_emo` が渡されていない。
+  - **改善点**: `generate_scene` 側でも SenseVoice の感情タグを `analyzer.analyze()` の引数として渡し、音声分析結果の一貫性を確保する。
+- [x] **課題 3-2: Shimmer / Jitter の算出感度とゼロ固定化の改善**（※2026-11-01 窓幅5の移動中央値フィルタによるイントネーション分離＆有声フレームRMS偏差によるShimmer算出、およびクランプ範囲緩和により0点張り付き・誤跳ね上がりを完全解消）
+  - **内容**: 音声テストにおいて `shimmer` スコアが 0.0 に張り付きやすい事象が確認された。フレーム単位のピーク振幅変動の算出ロジックおよび `DEFAULT_SCALES`（0.08）や既定値が実音声のダイナミクスと乖離している可能性がある。
+  - **改善点**: `f0_use` と有声フレーム `rms` に移動中央値フィルタ（`size=5`）を適用して通常のイントネーション変化と微細揺らぎ（`jitter` / `f0_delta_st` / `shimmer`）を分離し、クリップ音声でも `shimmer` が有意に算出されるよう改善完了。
+- [x] **課題 3-3: 語尾ピッチスロープ（`f0_slope_st`）のベースライン相対比較化**（※2026-11-01 修正完了）
+  - **内容**: `f0_slope_st`（半音/秒）が生特徴量ベースラインに保存されているが、正規化計算式（`_s`）では常に 0.0 を基準（水平）として計算されている。
+  - **改善点**: `normalize_7_features()` にて `self._s(raw, "f0_slope_st", b, True, scale_key="f0_slope_st")` とし、ベースラインの `f0_slope_st` との相対差分で `_contour` を算出するよう修正完了。
+- [x] **課題 3-4: 無音・極小音声入力時の感情スコア中立化フォールバック**（※2026-11-01 修正完了）
+  - **内容**: 完全無音や極端に短い音声が入力された際、全特徴量が 50 点基準値となり、12感情計算の重みバランスによって `bashfulness`（照れ）や `sensuality`（色気）が上位に選出される傾向がある。
+  - **改善点**: `extract_raw_features()` で無音・有声フレーム不足（`active.sum() < 3` 等）のときに `raw["_is_silent"] = 1.0` を記録し、無音時は常に基本感情 `serene`（穏やか）・ニュアンス修飾なし（`none_modifier`）・重み `0.85` に安全にフォールバックするガードを導入完了。
+- [x] **課題 3-5: 12感情計算式の重み係数の実声キャリブレーション**（※2026-11-01 2階層感情モデル＋音漏れ防止マイク対応3点アンカー非対称スケーリング［`normal`/`power`/`whisper`］により解決）
+  - **内容**: 現在の12感情算出式（線形結合係数）は合成音声および理論値ベースで設計されており、実声テスト（例: `02_happy.wav` が `rage` と判定されるなど）で意図と異なる感情が上位に来る場合がある。
+  - **改善点**: 第1階層（基本表情6種の排他選択）＋第2階層（声質ニュアンス修飾2種の乗算ゲート＆60pt閾値発動）＋3点アンカーによる個人別片側スケーリング＆低Jitter時の `surprise_fear` 減衰ゲートへ刷新完了。
+
+### カテゴリ 4: テスト・ドキュメント保守（品質管理・ドキュメント整合性）
+
+- [x] **課題 4-1: `self_test_voice_emo.py` のアサーション強化とクリーンアップ**（※2026-11-01 `import torch` 排除および2階層仕様・無音/棒読み/ささやき/大声/元気声の厳格アサーション更新完了）
+  - **内容**: openSMILE 排除に伴い旧 `softness` の合否判定が一時的に緩和されたこと、および使用されなくなった `import torch` が残存している。
+  - **改善点**: 新7特徴量（Arousal, Dominance, Breathiness 等）の境界値・変化量に対する厳格なアサーションを追加し、不要な依存コードを削除する。
+- [ ] **課題 4-2: `plans/README.md` および `AGENTS.md` の旧 InstantID 記述の整合整理**
+  - **内容**: `plans/README.md` の過去節（§0, §2, §3.4, §4, Phase 2 表）や `AGENTS.md` に、商用化改修前の InstantID / InsightFace 前提の記述が残存している。
+  - **改善点**: 過去ログとしての文脈を維持しつつ、現行の商用可能アーキテクチャ（IP-Adapter Plus Face のみ）と矛盾しないよう注記・更新を整理する。
+- [ ] **課題 4-3: `vlm_benchmark.csv` のベンチマーク記録精査**
+  - **内容**: Phase D の単体検証実行時のログ（`short hair` 判定）がベンチマーク CSV に追記されている。
+  - **改善点**: 再評価実施後に正規のベンチマークログとしてデータを整理・更新する。
+
+---
+
+## 9. カメラ撮影後のクロップ画像確認 ＆ ワークベンチ撮影・選択機能
+
+### 9.1 目的・概要
+InstantID を廃止し `IP-Adapter Plus Face SDXL` 単体構成（Node 29 / Node 30）へ移行したことに伴い、カメラ撮影画像の背景の写り込みや余白によって顔特徴が薄まるのを防ぐため、`server.py` 側で画像保存時に顔検出を行い、「頭頂部の髪〜肩まで」の領域に自動クロップしてから VLM および ComfyUI へ渡す。
+さらに、通常モードUIでの撮影後クロップ確認・再撮影フロー、および作りこみワークベンチUIでのカメラ撮影・クロップ済み画像選択機能を連携・実装する。
+
+### 9.2 進捗チェックリスト
+- [x] Step 1: `README.md` への計画記載と `server.py` のクロップ画像確認・一覧API実装
+- [x] Step 2: 通常モードUI（`index.html` / `app.js`）への撮影後クロップ確認・再撮影フロー実装
+- [x] Step 3: 作りこみワークベンチUI（`workbench.html` / `workbench.js`）へのカメラ撮影・クロップ画像選択機能の実装と統合検証
+
+### 9.3 実装仕様
+1. **設定・ディレクトリの準備**:
+   - `DEFAULT_CONFIG` に `"CAPTURED_FACES_DIR": "outputs/captured_faces"` を定義し、起動時（`lifespan`）に作成する。
+2. **「頭髪〜肩」自動クロップ関数 `crop_head_and_shoulders(image_bytes: bytes, ext: str = ".jpg") -> bytes`**:
+   - `PIL.Image`（`ImageOps.exif_transpose` 適用後 RGB変換）と OpenCV（`haarcascade_frontalface_default.xml`）を使用。
+   - 顔検出時：最大面積の顔 `(x, y, w, h)` に対し、`cx = x + w * 0.5`, `cy = y + h * 0.45`, `side = min(int(max(w, h) * 2.2), img_w, img_h)` の正方形領域を境界クランプして切り抜く。
+   - 顔未検出時（フェイルセーフ）：短辺 `min(img_w, img_h)` による中央正方形クロップ。
+   - `1024px` 超の場合は `1024x1024` にリサイズし、`ext` に合わせた画像バイト列を返却。
+3. **既存エンドポイントへのクロップ適用とプレビュー返却**:
+   - `POST /api/analyze_face`: アップロード画像に `crop_head_and_shoulders` を適用して `COMFY_INPUT_DIR` に保存し、返却JSONに `"cropped_image_base64"` を追加。
+   - `POST /api/generate_custom`: `face_image` アップロード時は `auto_crop: bool = Form(True)` に応じてクロップ適用。`image_filename` 指定時は再クロップせず、`COMFY_INPUT_DIR` に存在しない場合は `CAPTURED_FACES_DIR` または `test_assets/faces` からコピー。
+4. **カメラ撮影・クロップ保存・一覧取得用エンドポイント**:
+   - `POST /api/capture_cropped_face`: `sw_crop_{YYYYmmdd_HHMMSS}_{uuid[:6]}.jpg` として `CAPTURED_FACES_DIR` と `COMFY_INPUT_DIR` の両方に保存し、`{"status": "ok", "image_filename": filename, "cropped_image_base64": base64_str, "created_at": timestamp}` を返却。
+   - `GET /api/captured_faces`: `CAPTURED_FACES_DIR` 内のクロップ済み画像一覧（新しい順、最大30件）のメタデータ（`image_filename`, `url`, `created_at`）を返却。
+   - `GET /api/captured_faces/{filename}`: パストラバーサル防止検証の上、`FileResponse` で画像ファイルを返却。
+
+### 9.4 動作検証結果（2026-10-28 実測）
+
+| テスト画像 | 元画像 | 顔検出結果 (Haar Cascade) | クロップ後サイズ | 判定 |
+| :--- | :--- | :--- | :--- | :-: |
+| `koji-bose.jpg` | 463×463 | 検出成功 (`w=335, h=335`) → crop side=463 | **463×463 (正方形)** | **PASS** |
+| `koji-women-.jpg` | 1952×1952 | 検出成功 (`w=1344, h=1344`) → crop side=1952 → 1024縮小 | **1024×1024 (正方形)** | **PASS** |
+| `yae.jpg` | 790×790 | 検出成功 (`w=543, h=543`) → crop side=790 | **790×790 (正方形)** | **PASS** |
+| ダミー（顔なし青画像） | 640×480 | 顔未検出 → 短辺中央正方形フォールバック | **480×480 (正方形)** | **PASS** |
+
+- **FastAPI `TestClient` API検証 (`POST /api/capture_cropped_face`, `GET /api/captured_faces`, `GET /api/captured_faces/{filename}`)**:
+  - `POST /api/capture_cropped_face` で `sw_crop_...` 形式の保存（`CAPTURED_FACES_DIR` & `COMFY_INPUT_DIR` 両方）、`image_filename`, `cropped_image_base64`, `created_at` の返却を確認。
+  - `GET /api/captured_faces` で一覧取得（最大30件、新しい順）および `GET /api/captured_faces/{filename}` でファイル配信・パストラバーサル防御を確認。
+
+---
+
+## 10. ComfyUI ワークフローJSONの動的切り替え機能（FaceDetailer 有無の選択・比較）
+
+### 10.1 目的・概要
+生成時間の短縮検証（Phase 2 後半）および現場運用における速度・品質バランスの柔軟な選択を可能にするため、既存の `storyweaver_anime_api.json`（FaceDetailer あり / 30+20 steps）に加えて、FaceDetailer 系ノードを除外した `storyweaver_anime_nofd_api.json`（FaceDetailer なし / 30 steps）を導入し、バックエンドAPIおよび展示モード（スタッフ設定）・作りこみワークベンチUIの双方から動的に選択・切り替えられるようにする。
+
+### 10.2 進捗チェックリスト
+- [x] Step 1: バックエンド実装（`server.py`: `AVAILABLE_WORKFLOWS`, `GET /api/workflows`, `PUT /api/config` バリデーション, `build_workflow()` の FD ノード条件付き注入, `POST /api/generate_custom` の `workflow_path` 指定対応）と単体・API検証
+- [x] Step 2: 展示モード（スタッフ設定モーダル）および作りこみワークベンチUIへのワークフロー選択機能実装（FDなし選択時の Node 32 UI 無効化連動・履歴復元含む）とドキュメント更新
+
+### 10.3 実装仕様
+1. **選択可能なワークフロー定義（ホワイトリスト）**:
+   - `storyweaver_anime_api.json`: ラベル `"標準 (FaceDetailer あり / 30+20 steps)"`, `"has_fd": True`
+   - `storyweaver_anime_nofd_api.json`: ラベル `"高速 (FaceDetailer なし / 30 steps)"`, `"has_fd": False`
+2. **バックエンドAPI（`server.py`）**:
+   - `GET /api/workflows`: 各ワークフローのファイル存在確認（`exists: bool`）付き一覧と現在の設定値 `current_workflow` を返却。
+   - `PUT /api/config`: `WORKFLOW_PATH` が `ALLOWED_WORKFLOW_FILES` 以外の場合は `HTTP 400` で拒否。
+   - `build_workflow(image_filename, pos_base, neg_base, pos_fd="", workflow_filename=None)`: Node `"12"`, `"5"`, `"6"`, `"2"` は必須注入とし、Node `"32"`（`pos_fd`）と Node `"20"`（`seed`）はワークフロー内に存在する場合のみ注入。
+   - `POST /api/generate_custom`: Form引数 `workflow_path` を追加（未指定時は `CFG["WORKFLOW_PATH"]` を使用）し、レスポンスに使用した `workflow_path` を含める。
+3. **フロントエンドUI**:
+   - **展示モード（`static/index.html`, `static/app.js`）**: スタッフ設定モーダル内に「ComfyUI ワークフロー (JSON)」選択プルダウンを設置。`GET /api/workflows` で初期化し、変更時に `PUT /api/config` で `WORKFLOW_PATH` を即時保存。
+   - **作りこみワークベンチ（`static/workbench.html`, `static/workbench.js`, `static/workbench.css`）**: 下部スタジオヘッダーに「使用ワークフロー JSON」選択プルダウンを設置。`has_fd: false` のワークフロー選択時は Node 32（`Node_Pos_FD`）のテキストエリアおよび案A/案Bボタンを `disabled` 化（`FDなしJSON選択中は未使用` バッジ表示）し、生成実行時・履歴復元時にも `workflow_path` を連携。
+

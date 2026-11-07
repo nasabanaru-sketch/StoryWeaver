@@ -2,27 +2,59 @@
   "scenes": [
     {
       "id": "scene_01",
-      "name": "覚醒の剣士",
-      "script_text": "まだだ…俺は絶対に諦めない",
-      "scene_prompt": "fantasy anime, dramatic battlefield, dynamic pose, drawing a glowing legendary sword, leaning forward, flying sparks, cinematic lighting"
+      "name": "赤ずきんちゃん",
+      "script_text": "おまえを、一口で飲み込んでしまうためだ",
+      "scene_prompt": "wooden cabin bedroom, antique bed, wearing wolf kigurumi costume, (wolf ears : 1.2),  paw gloves, rising from bed with claw pose, upper body, looking at viewer",
+      "scene_neg_prompt": "full face mask, covering face, from behind, modern bedroom, electronics, extra hands, sideways glance"
     },
     {
       "id": "scene_02",
-      "name": "大魔法の発動",
-      "script_text": "闇を照らせ、これが私の全力だ",
-      "scene_prompt": "magic academy anime, casting a giant arcane spell, glowing magic circle, floating debris, wind blowing, dynamic angle, vibrant colors"
+      "name": "へそまがりの赤ずきん",
+      "script_text": "その素敵なコート、私にちょうだい",
+      "scene_prompt": "rustic wooden cabin, (with red hooded cloak : 1.25), holding hunting shotgun, aiming gun, upper body, dynamic action pose, gunsmoke, looking at viewer",
+      "scene_neg_prompt": "covering face, from behind, multiple guns, futuristic weapon, modern room, extra hands, sideways glance"
     },
     {
       "id": "scene_03",
-      "name": "サイバーパンクの切り札",
-      "script_text": "ターゲット捕捉。これよりシステムを突破する",
-      "scene_prompt": "cyberpunk anime, neon city night background, futuristic tactical gear, holographic visor display, cool action pose, high contrast"
+      "name": "荒廃した砂漠",
+      "script_text": "俺の特性パイをくらいな",
+      "scene_prompt": "post apcalics, desert, sandstorm,  outdoor, worn tactical jacket, upper body, dynamic throwing pose, holding a smoke grenade, smoking object,  motion blur, faded fabric, worn-out outfit, looking at viewer",
+      "scene_neg_prompt": "from behind, lush greenery, modern buildings, extra arms, sideways glance"
     },
     {
       "id": "scene_04",
-      "name": "栄光のフィナーレ",
-      "script_text": "みんな、本当にありがとう。最高の気分だ",
-      "scene_prompt": "bright fantasy festival, confetti and glowing light particles, triumphant pose, raising hand, warm sunlight, masterpiece scenery"
+      "name": "ももたろう　犬",
+      "script_text": "わんわん、桃太郎さん、きび団子をください。",
+      "scene_prompt": "white dog kigurumi, open dog hood with jaws, dog ears, upper body, dark forest, moonlight, looking at viewer, mid",
+      "scene_neg_prompt": "daytime, bright sunlight, modern buildings, full body, distance shot"
+    },
+    {
+      "id": "scene_05",
+      "name": "絶望の蓋",
+      "script_text": "この天才にまかせな",
+      "scene_prompt": "domestic kitchen background, upper body, holding a sealed glass jar of tomato sauce, closed metal lid, dramatic pose, indoor lighting, looking at viewer",
+      "scene_neg_prompt": "fantasy weapons, armor, modern buildings, outdoor, mecha, monsters, opened lid"
+    },
+    {
+      "id": "scene_06",
+      "name": "悪の組織",
+      "script_text": "見よ、新たな神の誕生を",
+      "scene_prompt": "evil organization secret base, supercomputer mainframe with glowing data streams, dark science laboratory, wearing a white lab coat, upper body, cowboy shot, facing forward, red and blue neon rim lighting, floating holographic UI screens, cinematic lighting, vibrant contrast, looking at viewer",
+      "scene_neg_prompt": "bright sunny park, medieval castle, cute animals, sideways glance"
+    },
+    {
+      "id": "scene_07",
+      "name": "四天王",
+      "script_text": "しょせん、やつは四天王の中でも最弱",
+      "scene_prompt": "dark fantasy anime, gothic castle throne room, high-backed wooden chair, seated at a round table, looking directly at camera, upper body, cinematic lighting, candle light",
+      "scene_neg_prompt": "sideways glance"
+    },
+    {
+      "id": "scene_08",
+      "name": "ももたろう　鬼",
+      "script_text": "ここは俺に任せて先に行け",
+      "scene_prompt": "standing tall, imposing stance,(short horns:1.3), traditional japanese clothes,(katana piercing chest:1.2),  heavy injuries, cuts and scratches, battle damage, stoic, looking at viewer",
+      "scene_neg_prompt": "bad anatomy, bad hands, missing fingers, extra digit, fewer digits, cropped, kneeling, lying down, sideways glance"
     }
   ]
 }

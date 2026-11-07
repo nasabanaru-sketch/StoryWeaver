@@ -394,15 +394,147 @@ Phase 2 の基準 4（時間短縮）を継続課題として残したまま、�
 
 ---
 
-## 3. 現在のステータス（2026-10-24 時点）
+### 【第25期】商用利用可能化（2026-10-26〜）
+* **背景**: 生成イラストを記念品として有償販売するため、非商用ライセンス資産を排除する。
+* **排除**: `audeering/wav2vec2-...-msp-dim`（CC-BY-NC-SA 4.0）、`openSMILE`（Research License）、`InsightFace antelopev2` + `InstantID`。
+* **方針**:
+  1. `detailed_12` モードの音響解析を **librosa(ISC) + scipy/numpy(BSD)** のみで再実装（IF 維持）。
+  2. ComfyUI ワークフローは **IP-Adapter Plus Face SDXL のみ**で顔保持（Base 0.60 / FD 0.40）。
+  3. 同一性低下の補完として VLM 外見タグ（目・眉）を安全な範囲で拡張。
+* **進捗管理**: [plans/README.md §7](file:///c:/antigravity/StoryWeaver/docs/plans/README.md) のチェックリスト。
+* **実施・完了内容**:
+  * **Phase A（計画策定・記録）**: 非商用モデル（wav2vec2, openSMILE, InstantID, InsightFace）の特定と除外計画、維持対象の整理、計画書および進捗チェックリストの策定完了。
+  * **Phase B（音声感情解析エンジンの商用化刷新）**:
+    - `voice_emo_analyzer.py` から `torch`, `transformers`, `opensmile` の依存を完全排除。
+    - `librosa` / `scipy` / `numpy` のみで 7つの音響特徴（arousal, dominance, valence, breathiness, jitter, shimmer, pitch）と 12感情スコアリング、Animagine XL 3.1 適合プロンプト合成（Base / FD）を実装。
+    - 単体推論時間 **約 0.02秒**（超高速）、VRAM 増分 **0.00 MB**（CPU 固定）。
+    - 棒読みベースライン更新（`calibrate_baseline`）と `voice_emo_baseline.json`（`engine: librosa_v1`）の初期化完了。
+  * **Phase C（ComfyUI ワークフローの InstantID 排除）**:
+    - `storyweaver_anime_api.json` からノード 13, 14, 17, 18, 25 を完全削除。
+    - `IPAdapterAdvanced` を Base（Node 29: weight 0.60, end_at 0.75）と FD（Node 30: weight 0.40, end_at 0.75）の 2 系統化。
+    - `KSampler`（Node 2）の positive/negative を Node 5/6 に、`FaceDetailer`（Node 20）の positive/negative を Node 32/6 に接続。
+    - 未解決ノード参照 0 件、主要ノード番号維持、`server.py` の `build_workflow()` 動作確認完了。
+  * **Phase D（VLM 外見タグ補完・統合検証）**:
+    - `verify_step1_vlm.py` の Pydantic スキーマに `eye_shape` と `eyebrows` を既定値付き任意フィールドとして安全に追加。
+    - 実機 Ollama（`gemma4:e2b`）による推論でパースエラー 0%・VRAM 即時解放を確認。
+    - FastAPI TestClient による E2E 疎通テスト（`standard` / `detailed_12` 両モード、各 API）で全テスト 200 OK パス。
+    - `docs/OPERATION_MANUAL.md` を商用化構成に合わせて最新化。
+
+---
+
+### 【第26期】カメラ撮影後のクロップ画像確認 ＆ ワークベンチ撮影・選択機能（2026-10-28）
+* **背景・目的**:
+  * 商用化改修（Phase C）で InstantID を廃止し `IP-Adapter Plus Face SDXL`（Node 29 / Node 30）単体構成へ移行したことに伴い、カメラ撮影画像の背景写り込みや余白によって顔特徴が希薄化し、アニメ生成時の本人同一性が低下する懸念に対処。
+  * `server.py` 側で画像保存時に顔検出を行い、「頭頂部の髪〜肩まで」の領域（`side = min(int(max(w, h) * 2.2), img_w, img_h)`、縦中心 `cy = y + h * 0.45`）へ自動クロップしてから VLM および ComfyUI へ渡すとともに、通常モードでのクロップ結果確認・再撮影、およびワークベンチでのカメラ撮影・クロップ済み画像選択を可能にする。
+* **3ステップ実装計画**（[plans/README.md §9](file:///c:/antigravity/StoryWeaver/docs/plans/README.md)）:
+  * [x] Step 1: `README.md` への計画記載と `server.py` のクロップ画像確認・一覧API実装
+  * [x] Step 2: 通常モードUI（`index.html` / `app.js`）への撮影後クロップ確認・再撮影フロー実装
+  * [x] Step 3: 作りこみワークベンチUI（`workbench.html` / `workbench.js`）へのカメラ撮影・クロップ画像選択機能の実装と統合検証
+* **実施・完了内容（Step 1〜3）**:
+  1. `server.py` に `crop_head_and_shoulders(image_bytes, ext)` を実装。OpenCV Haar Cascade（`haarcascade_frontalface_default.xml`）による顔検出、頭髪〜肩領域の正方形切り出し、1024px リサイズ、未検出時の中央クロップフォールバックを完備。
+  2. `POST /api/analyze_face`：クロップ適用後に `COMFY_INPUT_DIR` へ保存し、レスポンスに `cropped_image_base64` を追加。
+  3. `POST /api/generate_custom`：`face_image` 直接アップロード時の `auto_crop: bool = Form(True)` 対応、および `image_filename` 指定時に `CAPTURED_FACES_DIR` / `test_assets/faces` から `COMFY_INPUT_DIR` へ自動コピーする連携処理を実装。
+  4. カメラ撮影・クロップ保存・一覧取得APIの実装：
+     - `POST /api/capture_cropped_face`：`sw_crop_{YYYYmmdd_HHMMSS}_{uuid[:6]}.jpg` として `CAPTURED_FACES_DIR` と `COMFY_INPUT_DIR` の両方に保存し、`image_filename`, `cropped_image_base64`, `created_at` を返却。
+     - `GET /api/captured_faces`：`CAPTURED_FACES_DIR` 内のクロップ済み画像一覧（新しい順、最大30件）を返却。
+     - `GET /api/captured_faces/{filename}`：パストラバーサル防止検証付きで画像ファイルを `FileResponse` 返却。
+  5. **Step 2（通常モードUI改修）**:
+     - `static/index.html` / `static/app.js` / `static/style.css` にて、ステップ2の撮影直後に裏で `POST /api/analyze_face` を非同期開始しつつ、`POST /api/capture_cropped_face` で取得した頭髪〜肩の正方形クロップ画像を大きくプレビュー表示。
+     - 「このように切り抜かれました（頭髪から肩までが収まっているか確認してください）」の案内、「↺ 撮り直す（再撮影）」ボタン、「この写真で進む（セリフ録音へ） ➔」ボタンを配置。
+     - ステップ3（セリフ録音画面）上部に現在使用中のクロップ済み顔写真のサムネイル（`#step3-cropped-thumb-box`）を表示。
+  6. **Step 3（作りこみワークベンチUI改修）**:
+     - `static/workbench.html` / `static/workbench.js` / `static/workbench.css` の「人物画像 (Face)」セクションを拡張。
+     - **① カメラで撮影してクロップ機能**：ワークベンチ内でカメラ起動（頭・肩ガイド枠・デバイス切替付き）→「✂️ 撮影してクロップ」で `POST /api/capture_cropped_face` 送信→クロップ結果プレビュー表示→「↺ 撮り直す」または「✓ このクロップ画像を入力にセット」で `sw_crop_xxx.jpg` をセット。
+     - **② 撮影済みクロップ画像リストから選択機能**：`GET /api/captured_faces` で取得したクロップ済み画像一覧をサムネイルグリッド表示し、クリックでプレビュー表示＆入力画像（`image_filename`）としてセット。
+     - ローカル画像選択時にも「自動で頭髪〜肩クロップを適用する (`auto_crop`)」チェックボックス（デフォルトON）を用意し、即時クロップ確認＆VLM分析・カスタム生成（`/api/generate_custom`）への引き渡しを統合。
+     - `docs/OPERATION_MANUAL.md` に新UI・操作手順を追従更新。
+* **統合検証結果**:
+  * `python -m py_compile server.py`、`node --check static/app.js`、`node --check static/workbench.js` の構文チェックすべてパス。
+  * FastAPI `TestClient` による `/api/capture_cropped_face` → `/api/captured_faces` → `/api/captured_faces/{filename}` → `/api/generate_custom`（`CAPTURED_FACES_DIR` から `COMFY_INPUT_DIR` への自動コピー解決含む）の統合テストを全パス。
+
+---
+
+### 【第27期】ComfyUI ワークフローJSONの動的切り替え機能（FaceDetailer 有無の選択・比較）（2026-10-31）
+* **背景・目的**:
+  * 生成時間の短縮検証および現場での速度・品質バランスの柔軟な選択のため、FaceDetailer を除外したワークフロー `storyweaver_anime_nofd_api.json`（30 steps）を追加し、既存の `storyweaver_anime_api.json`（FaceDetailer あり / 30+20 steps）とシステム・UI上で動的に選択・切り替えられるように改修。
+* **実施・完了内容**:
+  1. **バックエンド実装（`server.py`）**:
+     - `AVAILABLE_WORKFLOWS`（`has_fd` フラグ付き）および `ALLOWED_WORKFLOW_FILES` ホワイトリストを定義。
+     - `GET /api/workflows` を新設し、各ワークフローJSONのファイル実在確認（`exists: bool`）と現在の `current_workflow` を返却。
+     - `PUT /api/config` に `WORKFLOW_PATH` のホワイトリスト検証（不正ファイル名時は `400 Bad Request`）を追加。
+     - `build_workflow()` を改修し、`workflow_filename` 引数対応および Node `"32"`（`pos_fd`）・Node `"20"`（`seed`）の条件付きセット（`if "32" in wf:`, `if "20" in wf:`）を実装。
+     - `POST /api/generate_custom` に `workflow_path: Optional[str] = Form(None)` を追加し、`pos_fd` のデフォルトを空文字に変更、レスポンスに使用した `workflow_path` を付与。
+  2. **展示会モード・スタッフ設定UI（`static/index.html`, `static/app.js`）**:
+     - スタッフ設定モーダルに「ComfyUI ワークフロー (JSON)」選択 `<select>`（`#select-workflow`）を追加。
+     - `GET /api/workflows` から選択肢を動的生成し、変更時に `PUT /api/config` で `WORKFLOW_PATH` を `config.json` に即時保存。
+  3. **作りこみワークベンチUI（`static/workbench.html`, `static/workbench.js`, `static/workbench.css`）**:
+     - 下部スタジオヘッダーに「使用ワークフロー JSON」選択 `<select>`（`#wb-workflow-select`）を追加。
+     - `has_fd: false`（FaceDetailer なし）選択時は、Node 32（`Node_Pos_FD`）のテキストエリアおよび案A/案Bボタンを `disabled` 化（半透明表示＋`FDなしJSON選択中は未使用` バッジ表示）し、`has_fd: true` に戻した際に再有効化するUI連動を実装。
+     - `POST /api/generate_custom` 送信時の `FormData` に `workflow_path` を付与し、セッション内生成履歴への保存・クリック復元にも対応。
+  4. **ドキュメント更新**:
+     - `docs/OPERATION_MANUAL.md`、`docs/plans/README.md`（§10）、および本ログを更新。
+* **検証結果**:
+  * `python -m py_compile server.py`、`node --check static/app.js`、`node --check static/workbench.js` すべてエラーなし。
+  * FastAPI `TestClient` による `GET /api/workflows`、`build_workflow()`（FDあり/なし両方）、`PUT /api/config` バリデーションのテスト全パス。
+
+### 【第28期】音声感情解析エンジンの2階層方式（基本6表情＋声質ニュアンス修飾2種）への刷新（2026-11-01）
+* **背景・目的**:
+  * フラットな12感情スコアリングと上位2感情の無条件ブレンドにより、相反する表情（笑顔＋怒り等）の混在による描画破綻や、平常発声での「色気（sensuality）」の誤爆（課題3-2）、語尾ピッチスロープ基準値の固定化（課題3-3）、無音入力時の誤判定（課題3-4）、基準値ファイルの合成音声汚染（課題3-5）が生じていたため、2階層感情モデル（基本表情6種の排他選択＋声質ニュアンス修飾2種の条件発動＋Arousal熱量スケーリング）へ全面刷新を実施。
+* **主な実装内容**:
+  1. **基礎特徴量（`normalize_7_features`）の改善と既存課題の解消（`voice_emo_analyzer.py`）**:
+     - **無音・極小音声ガード（課題3-4）**: `extract_raw_features()` で無音または有声フレーム不足（`active.sum() < 3`）時に `raw["_is_silent"] = 1.0` を記録し、無音時は常に `serene`（穏やか・重み `0.85`）・ニュアンス修飾なし（`none_modifier`）へ安全にフォールバック。
+     - **語尾ピッチスロープの相対比較化（課題3-3）**: `f0_slope_st` をベースラインとの相対差分で正規化するよう修正。
+     - **Arousal / Valence の再定義**: 怒りや叫びでも上昇するピッチ変動（`f0_std_st`）を Valence から Arousal へ移し、SenseVoice 感情バイアス（`HAPPY: +25`, `SAD: -25`, `ANGRY: -20` 等）を調整。
+  2. **2階層感情モデルの実装（`voice_emo_config.json`, `voice_emo_analyzer.py`）**:
+     - **第1階層（基本表情6種・排他選択）**: `joy`（歓喜・笑顔）、`burning`（情熱・怒気・叫び）、`sorrow`（哀愁・切なさ）、`surprise_fear`（驚愕・怯え）、`confident`（不敵・自信・クール）、`serene`（穏やか・優しさ、平常時 `+2.0` バイアス）。
+     - **第2階層（声質ニュアンス修飾2種・乗算ゲートによる厳格な足切り）**: `sultry_modifier`（色気・吐息ニュアンス：`bre >= 62.0` かつ `aro <= 58.0` かつ主感情が `burning`/`surprise_fear` 以外で発動、非該当時は `×0.35` 減衰）、`bashful_modifier`（照れ・上ずりニュアンス：`jit >= 58.0` かつ `pit >= 55.0` かつ主感情が `burning` 以外で発動、非該当時は `×0.40` 減衰）、および未発動時用の `none_modifier`（ストレート表現）。
+     - **プロンプト生成（`generate_prompts`）**: 主感情は基本6種の最高得点1つのみを選出し `w1 = 0.85〜1.20`（Arousal連動）を付与。ニュアンス修飾は `60.0pt` 以上の場合のみ `w2 = 0.65〜0.95` でブレンドし、未満の場合は主感情タグのみを出力。
+  3. **フロントエンドUI調整（`static/index.html`, `static/workbench.html`, `static/app.js`, `static/workbench.js`, `static/workbench.css`）**:
+     - 来場者UI・ワークベンチ双方の感情詳細カードを「主感情（PRIMARY）」＋「ニュアンス修飾（NUANCE / STRAIGHT）」および全8項目スコア一覧に更新し、`none_modifier` 時も自然に表示されるよう調整。
+     - スタッフ設定の棒読み基準値プレビューを `librosa_v1` キー（`rms_p90_db`, `f0_median_hz`, `f0_slope_st`, `hnr_db`, `jitter`）に更新（課題4-1解消）。
+  4. **基準値ファイルのクリーン初期化（課題3-5）と検証（`voice_emo_baseline.json`, `self_test_voice_emo.py`）**:
+     - `voice_emo_baseline.json` を `DEFAULT_BASELINE`（`engine: "librosa_v1"`）でクリーン初期化。
+     - 単体テスト（`self_test_voice_emo.py`）および FastAPI `TestClient` による `/api/analyze_audio`・`/api/generate_custom` 統合テストを実施し、全項目パス（推論時間最大 `0.014s <= 0.05s`、VRAM増分 `0.0MB`）。
+
+---
+
+### 【第29期】音漏れ防止マイク（距離固定）対応・3点アンカーキャリブレーション＆イントネーション分離改修（2026-11-01）
+* **背景・目的**:
+  * 現場で使用する音漏れ防止マイク（距離固定）と来場者ごとの声質・声量差に対し、従来の「固定クランプ範囲＋単一棒読み基準±固定スケール」では `flatness` / `hnr_db` / `breath_ratio` / `shimmer` がクランプ境界や 0 点に張り付き、また通常のイントネーション変化で `jitter` / `f0_delta_st` が跳ね上がって `surprise_fear` 等に誤分類される課題を特定。
+  * 来場者ごとに「①棒読み（`normal`：必須・50pt基準）」「②張った声（`power`：任意・上限アンカー）」「③ささやき声（`whisper`：任意・吐息/下限アンカー）」を事前登録できる3点アンカーキャリブレーションと、移動中央値フィルタによるイントネーション分離を実装。
+* **主な実装内容**:
+  1. **バックエンド音響特徴量・3点アンカー正規化の改修（`voice_emo_analyzer.py`）**:
+     - **`BASELINE_CLAMP_RANGES` の大幅緩和**: 音漏れ防止マイクの実測域で張り付かないよう全16項目のクランプ範囲を緩和。
+     - **イントネーションと微細揺らぎの分離 & Shimmer 改善**: `f0_use` および有声フレーム `rms` に対して窓幅5の移動中央値フィルタ（`scipy.ndimage.median_filter`）を適用し、滑らかな曲線からの微細偏差として `jitter`, `f0_delta_st`, `shimmer` を算出（ピーククリップ音声でも `shimmer` が 0 点に張り付かないよう改善）。
+     - **3点アンカーキャリブレーション (`calibrate_baseline(wav_inputs, mode)`) と非対称スケーリング `_s()`**:
+       - `mode="normal"` 登録時にトップレベル基準値を更新すると同時に `anchors: {"power": None, "whisper": None}` をリセット。
+       - `mode="power"` / `"whisper"` 登録時に `self.baseline["anchors"][mode]` を保存し、`_s()` で上振れ側（`rms_p90_db`, `peak_db`, `centroid_hz`, `rolloff_hz`, `f0_std_st`, `onset_rate` → `/0.85`、`breath_ratio` → `/0.80`）および下振れ側（`rms_p90_db` → `/0.70`、`hnr_db` → `/0.80`）の片側スケールを動的に算出（最小スケール `default_scale * 0.25` 保護付き）。
+     - **7基礎指標・2階層感情スコア式の最適化**: 距離固定マイク向けに `arousal`, `dominance`, `valence` の重みを調整し、`confident` の安定発声優位化、`serene` の減衰ゲート（`aro >= 52 or dom >= 52` で `×0.75`）、`surprise_fear` の低Jitter減衰ゲート（`jit < 48` かつ非 SURPRISED/FEARFUL で `×0.75`）を導入。
+  2. **APIエンドポイント拡張（`server.py`）**:
+     - `POST /api/calibrate_voice_emo`: `mode: str = Form("normal")`（`normal` / `power` / `whisper`）に対応し、アップロードされた WAV を `test_assets/calibrated_samples/latest_{mode}.wav` へ自動保存。更新後の `baseline`（`anchors` / `anchors_status` 含む）と `raw_features` を返却。
+     - `GET /api/voice_emo_baseline`: 起動直後でも `calibrated_at`, `samples_count`, `engine`, `anchors`, `anchors_status` を欠落なく返却。
+     - `POST /api/analyze_audio`: `detailed_12` 時のレスポンスに `"raw_features"`（16項目）を追加。
+  3. **フロントエンドUI（3点ボイスチェック＆生特徴量デバッグ表示）の実装（`static/index.html`, `static/app.js`, `static/style.css`, `static/workbench.html`, `static/workbench.js`, `static/workbench.css`）**:
+     - 録音方式を従来の3.5秒固定から「**開始/停止トグル方式（経過秒数カウント・最大6.0秒自動停止）**」へ全面刷新。
+     - **来場者ウィザード Step 3 (`#step3-voice-check-box`) & スタッフ設定モーダル (`#baseline-calibration-box`)**: ①棒読み・②張った声・③ささやき声のガイド例文付き録音カードと登録ステータスバッジ、実測値チップを配置し、Step 3 とスタッフ設定で状態を完全同期。
+     - **作りこみワークベンチ (`#wb-calib-details`, `#wb-raw-features-grid`)**: 音声セクション上部に3点ボイスチェックパネル（マイク録音＋ローカルWAVファイル登録対応）を追加し、キャリブレーション更新時にセット済みセリフ音声を自動で `/api/analyze_audio` 再分析する連動機能、および `raw_features`（16項目 vs 現在ベースライン）の比較グリッド表示を追加。
+  4. **検証・ドキュメント更新**:
+     - `self_test_voice_emo.py`（イントネーション分離・3点アンカー検証含む全11項目）および FastAPI `TestClient` 統合テストが全項目 PASS。テスト完了後に `voice_emo_baseline.json` をクリーンな `DEFAULT_BASELINE` 状態へ復元。
+
+---
+
+## 3. 現在のステータス（2026-11-01 時点）
 
 | Phase | 内容 | 状態 |
 | :--- | :--- | :--- |
 | Phase 1 | VLM 外見抽出 / SenseVoice | ✅ 完了（Gate 1-A・1-B 合格、VLM v2 再評価済み） |
-| Phase 2 | ComfyUI ワークフロー | ⏳ 基準 1〜3 合格。**基準 4 継続**：画質の詰め（ワークベンチで実施中）、**時間短縮（後半）は未着手** |
+| Phase 2 | ComfyUI ワークフロー | ⏳ 基準 1〜3 合格。**基準 4 継続**：画質の詰め・FD有無比較（ワークベンチで動的JSON切替対応済み） |
 | Phase 3 | FastAPI 2段階 API | ✅ 完了（Gate 3 ALL PASS、10/22） |
 | Phase 4 | 来場者 UI・スタッフ設定 | 🔧 実装済み・**Gate 4 未判定** |
-| 拡張 | 12感情モード（voice_emo） | 🔧 実装・統合済み・**実機発声による係数調整は未記録** |
+| 拡張 | 2階層感情モード（voice_emo） | ✅ **3点アンカーキャリブレーション＆イントネーション分離対応完了**（基本6表情＋ニュアンス修飾2種、音漏れ防止マイク対応、推論 ~0.02s、VRAM 0MB） |
+| 商用化 | 非商用資産の排除（Phase A〜D） | ✅ **完了**（InstantID/openSMILE/wav2vec2 排除、IP-Adapter Face 2系統化、VLM 目・眉拡張） |
+| 画像クロップ | カメラ画像の頭髪〜肩自動クロップ保存 | ✅ **完了**（§9 実装・単体/API動作検証完了、課題3-1修正完了） |
+| ワークフロー切替 | FDあり/なしワークフローJSON動的切替 | ✅ **完了**（§10 バックエンドAPI・スタッフ設定・ワークベンチUI実装＆検証完了） |
 | Phase 5 | リハーサル・耐久 | ☐ 未着手 |
 
 ### 3.1 判明しているドキュメント間の不整合（要修正）
@@ -420,6 +552,51 @@ Phase 2 の基準 4（時間短縮）を継続課題として残したまま、�
 2. 12感情モードの実機発声テストと係数調整の結果を記録する。
 3. Phase 2 基準 4：ワークベンチで画質を確定 → ステップ数等を削減して目標生成時間を確定する。
 4. 上記 3.1 の不整合を解消する。
+
+---
+
+### 【第24期】Qwen2-Audio-7B-Instruct (4bit) ハイブリッド感情分析モジュールの実装と検証（2026-11-03）
+* **背景と目的**:
+  * 台本セリフの強い意味（「一口で飲み込んでしまう」等）に引っ張られず、来場者の声の演技ニュアンス・トーンと物理変化データ（ΔRMS, ΔPitch, 息漏れ倍率等）のみで感情・演技講評を生成する `Qwen2-Audio-7B-Instruct`（Apache-2.0）ハイブリッド分析モードの構築。
+* **技術的課題と対処**:
+  1. **CPU/RAM 誤展開の防止**: 既存仮想環境が CPU 版 PyTorch だったため、CUDA 対応版 `torch==2.11.0+cu128` / `torchaudio==2.11.0+cu128` を導入。`qwen2_audio_hybrid.py` 内に `torch.cuda.is_available()` チェックを配備。
+  2. **Transformers 5.x 適合**: プロセッサ呼び出しを `audio=[audio_16k]` に統一し、音声入力が無視される警告を解消。
+* **検証結果（単体テスト `python qwen2_audio_hybrid.py` 実行）**:
+  * **4bit ロード時 VRAM**: 5962.7 MB（約 5.96 GB。目標 6〜8GB の範囲内・OOM ゼロ）。ロード時間 46.6 秒。
+  * **推論結果**: 8 感情スコア、物理音響サマリー (`prompt_summary_ja`)、講評コメント (`acting_comment_ja`)、一言要約 (`detected_nuance_short`)、および Base/FD 用 Animagine XL 表情プロンプト (`expression_prompt`) を正常出力。推論時間 15.5 秒。
+  * **VRAM 即時解放 (`unload_model`)**: 5971.8 MB ➔ 9.1 MB へ完全復帰（1GB 以下の合格基準を達成）。ComfyUI 画像生成時の VRAM 競合ゼロを担保。
+
+---
+
+### 【第25期】qwen2_audio_hybrid モードにおける「burning 偏重事象」原因特定と修正実装（2026-11-03）
+* **背景と課題**:
+  * `qwen2_audio_hybrid` モードにおいて、音声入力を行うと「情熱・怒気・叫び（`burning`）」ばかりが高得点になり、他の表情（`joy`, `confident`, `serene`, `sultry_modifier`）へ分岐しにくい問題が発生。
+* **調査と真因特定（実音声データ完全トレース検証）**:
+  1. **P0: 修飾子キーのパース欠損バグ**:
+     * Qwen2-Audio はプロンプト指定（`sultry_modifier`）に関わらず、キャメルケース・スペース混じりの `"sultry Modifier"` / `"bashful Modifier"` で出力する特性があった。
+     * これにより `qwen2_audio_hybrid.py` 内の厳格なキー取得で不一致を起こし、せっかく LLM が 70〜80 点と採点した色気・照れ修飾子がフォールバック値（18〜24点）に潰され、第2階層表情（半眼・赤面）が一切発動しなくなっていた。
+  2. **P1: マイクゲイン差およびプロンプトの扇動的サマリー**:
+     * 棒読みベースライン収録時とテスト音声でマイク調整差があり、ΔRMS が +25dB 以上の巨大な値となっていた。加えてサマリー内で「（平常より大幅に大きい・叫び/張り声傾向）」と感情ラベルを事前注入していたため、LLM が burning へ強烈に誘導されていた。
+  3. **P2: burning 定義の広すぎ問題**:
+     * ルーブリック内で「大声量 ΔRMS」が直結していたため、元気に演じた声まで burning として採点されていた。
+  4. **P3: 音響波形のピークノーマライズ未適用**:
+     * 生波形の音量とプロンプトの ΔRMS の二重増幅で、Qwen2 の音響エンコーダが叫び声として過剰反応していた。
+* **実施した改修**:
+  1. **キー名正規化パーサーの実装**:
+     * LLM 出力の JSON キーを `str.lower().replace(" ", "_")` で正規化し、`"sultry"` や `"bashful"` を含むキーを確実に `sultry_modifier` / `bashful_modifier` に吸収・マッピングする安全処理を配備。
+  2. **プロンプト採点ルーブリックの厳格化**:
+     * `burning` は「怒気・威嚇・叫び（平常より圧倒的に大きい声量 ΔRMS >= +4dB）」に厳しく限定し、平常並みの声量では 50点以下に抑えるルールを明示。
+     * ピッチが平常より高い（ΔPitch > +1.5st）明るい声は `joy`、ピッチが平常より低い（ΔPitch <= 0st）落ち着いた声は `confident` へ誘導するルーブリックを整備。思考停止テンプレートの原因だった曖昧な例示（例1〜例3）を全廃。
+  3. **音声波形のピークノーマライズ（-1.0 dBFS）**:
+     * `processor` に渡す入力波形を `-1.0 dBFS` にピークノーマライズ。声量差はテキストの `ΔRMS` 数値で客観的に判断させ、波形からは純粋な「トーン・声質」を評価させるパイプラインに刷新。
+* **改修後の実証結果**:
+  * マイクゲインを同一環境に揃えた新サンプル（`01_shout.wav` 〜 `04_cool.wav`）にて検証：
+    * `01_shout.wav` (ΔPitch +2.19st): `joy: 85.0`, `burning: 50.0`, `confident: 70.0` ➔ **第1位 `joy`（85点）**
+    * `02_happy.wav` (ΔPitch +4.32st): `joy: 80.0`, `burning: 50.0`, `confident: 70.0` ➔ **第1位 `joy`（80点）**
+    * `04_cool.wav` (ΔPitch -6.86st, ΔRMS -4.7dB): `serene: 90.0`, `confident: 70.0`, `burning: 50.0` ➔ **第1位 `serene`（90点）**（burning は 50点に完全抑制）
+  * これにより、声のトーンやピッチ変化に応じた表情分岐が正常に機能することを確認。
+
+
 
 
 

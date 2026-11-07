@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,9 +8,12 @@
   <meta name="description" content="来場者の顔写真と発話音声からリアルタイムにアニメ調キャラクターイラストとセリフ・朗読音声を同時生成する完全ローカル稼働型AIインスタレーション。">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=Noto+Sans+JP:wght@300;400;500;700;900&family=Shippori+Mincho:wght@600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=Noto+Sans+JP:wght@300;400;500;700;900&family=Shippori+Mincho:wght@600;800&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css?v=20261106_standby">
 </head>
+
 <body class="theme-dark">
   <div class="app-background">
     <div class="bg-gradient-orb orb-1"></div>
@@ -65,14 +69,18 @@
         <span class="dot dot-success"></span>
         <span id="badge-system-text">System Ready</span>
       </div>
-      <a href="/workbench" class="btn btn-icon btn-glass" title="画像の作りこみモード（ワークベンチ）" target="_blank" style="text-decoration:none;">
+      <a href="/workbench" class="btn btn-icon btn-glass" title="画像の作りこみモード（ワークベンチ）" target="_blank"
+        style="text-decoration:none;">
         <span style="font-size:16px;">🎨</span>
         <span class="btn-text">作りこみモード</span>
       </a>
       <button id="btn-open-staff-settings" class="btn btn-icon btn-glass" title="スタッフ用管理設定">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="3"></circle>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          <path
+            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+          </path>
         </svg>
         <span class="btn-text">スタッフ設定</span>
       </button>
@@ -85,8 +93,25 @@
     <!-- STEP 1: シーン選択 -->
     <section id="step-1-scene" class="wizard-step active">
       <div class="step-header text-center">
-        <h2 class="step-title">あなたが転生したい世界を選んでください</h2>
-        <p class="step-desc">壮大な物語の主人公として、世界観と最初の台本を決定します。</p>
+        <h2 class="step-title">あなたが演じたいセリフを選んでください</h2>
+        <p class="step-desc">世界観と台本を決定します。</p>
+      </div>
+
+      <!-- Step 1: AIモデル手動スタンバイバー (Gemma 4 e2b + Qwen2-Audio) -->
+      <div class="step1-standby-bar" id="step1-standby-bar">
+        <div class="standby-info">
+          <span class="standby-status-dot is-idle" id="step1-standby-dot"></span>
+          <div class="standby-texts">
+            <span class="standby-title" id="step1-standby-title">AIモデル 未ロード（オンデマンド待機中）</span>
+            <span class="standby-sub" id="step1-standby-sub">世界観を選んでいる間にボタンを押すと、Gemma 4 e2b と Qwen2-Audio を事前に VRAM へロードします</span>
+          </div>
+        </div>
+        <div class="standby-actions">
+          <button type="button" id="btn-step1-standby" class="btn btn-secondary btn-standby">
+            <span class="standby-btn-icon" id="step1-standby-icon">⚡</span>
+            <span class="standby-btn-label" id="step1-standby-label">AIモデルをスタンバイ (Gemma + Qwen2 事前ロード)</span>
+          </button>
+        </div>
       </div>
 
       <div id="scenes-grid" class="scenes-grid">
@@ -97,15 +122,15 @@
     <!-- STEP 2: カメラ撮影 -->
     <section id="step-2-camera" class="wizard-step">
       <div class="step-header text-center">
-        <h2 class="step-title">カメラに顔を合わせて撮影してください</h2>
-        <p class="step-desc">頭部と輪郭をガイド枠に合わせることで、アニメへの転生精度が格段に向上します。</p>
+        <h2 class="step-title" id="camera-step-title">カメラに顔を合わせて撮影してください</h2>
+        <p class="step-desc" id="camera-step-desc">頭部と輪郭をガイド枠に合わせることで、二次元への転生精度が格段に向上します。</p>
       </div>
 
       <div class="camera-stage">
         <div class="camera-viewfinder" id="camera-viewfinder">
           <video id="camera-video" autoplay playsinline muted></video>
           <canvas id="camera-canvas" class="hidden"></canvas>
-          <img id="camera-snapshot-preview" class="hidden" alt="撮影プレビュー">
+          <img id="camera-snapshot-preview" class="hidden" alt="クロップ済み撮影プレビュー">
 
           <!-- 頭・肩ガイドオーバーレイ -->
           <div class="guide-overlay" id="guide-overlay">
@@ -115,11 +140,12 @@
               <path class="guide-corner" d="M 370,70 L 370,30 L 330,30" />
               <path class="guide-corner" d="M 30,430 L 30,470 L 70,470" />
               <path class="guide-corner" d="M 370,430 L 370,470 L 330,470" />
-              
+
               <!-- 頭部シルエット（楕円） -->
               <ellipse cx="200" cy="180" rx="90" ry="120" class="guide-head" />
               <!-- 首・肩ライン -->
-              <path d="M 160,290 C 140,340 70,370 20,410 L 20,490 L 380,490 L 380,410 C 330,370 260,340 240,290 Z" class="guide-shoulders" />
+              <path d="M 160,290 C 140,340 70,370 20,410 L 20,490 L 380,490 L 380,410 C 330,370 260,340 240,290 Z"
+                class="guide-shoulders" />
             </svg>
             <div class="guide-tip">
               <span class="guide-icon">👤</span>
@@ -127,13 +153,32 @@
             </div>
           </div>
 
+          <!-- クロップ確認時のラベルバッジ -->
+          <div id="crop-preview-badge" class="crop-preview-badge hidden">
+            <span>✂️ 自動クロップ完了（頭髪〜肩）</span>
+          </div>
+
           <!-- カウントダウン演出 -->
           <div id="camera-countdown" class="camera-countdown hidden">3</div>
         </div>
 
+        <!-- クロッププレビュー確認メッセージ -->
+        <div id="crop-confirm-notice" class="crop-confirm-notice hidden">
+          <div class="crop-notice-main">
+            <span class="crop-notice-icon">🔍</span>
+            <span>このように切り抜かれました（頭髪から肩までが収まっているか確認してください）</span>
+          </div>
+          <div id="step2-vlm-progress" class="step2-vlm-progress">
+            <div class="spinner-small" id="step2-vlm-spinner"></div>
+            <span id="step2-vlm-text">裏側で外見特徴（髪型・眼鏡）をAI解析中... このまま次へ進めます</span>
+          </div>
+        </div>
+
         <div class="camera-controls">
           <button id="btn-switch-camera" class="btn btn-secondary btn-icon" title="カメラ切替">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+            </svg>
             <span>カメラ切替</span>
           </button>
 
@@ -143,8 +188,8 @@
           </button>
 
           <div id="camera-review-actions" class="review-actions hidden">
-            <button id="btn-retake-photo" class="btn btn-glass">撮り直す</button>
-            <button id="btn-confirm-photo" class="btn btn-primary btn-glow">この写真で決定 ➔</button>
+            <button id="btn-retake-photo" class="btn btn-glass btn-large">↺ 撮り直す（再撮影）</button>
+            <button id="btn-confirm-photo" class="btn btn-primary btn-large btn-glow">この写真で進む（セリフ録音へ） ➔</button>
           </div>
         </div>
       </div>
@@ -153,7 +198,7 @@
     <!-- STEP 3: 台本表示・録音 ＆ セリフ編集 -->
     <section id="step-3-audio" class="wizard-step">
       <div class="step-header text-center">
-        <h2 class="step-title">セリフを魂を込めて発声してください</h2>
+        <h2 class="step-title">セリフに魂を込めて発声してください</h2>
         <p class="step-desc">声の熱量・感情・音量をAIがリアルタイム解析し、キャラクターの表情へと宿します。</p>
       </div>
 
@@ -163,17 +208,128 @@
         <span id="vlm-banner-text">裏側であなたの外見特徴（髪型・生え際・眼鏡）をAI解析中...</span>
       </div>
 
+      <!-- 2ステップ導線：棒読み測定 → 本番セリフ発声（detailed_12 / qwen2_audio_hybrid モード時に表示） -->
+      <div id="step3-flow-guide" class="flow-guide hidden">
+        <!-- STEP 3-1: 平常声（棒読み）の測定 -->
+        <div class="flow-step-card is-current" id="flow-step-baseline">
+          <div class="flow-step-header">
+            <span class="flow-step-num">STEP 3-1</span>
+            <span class="flow-step-title">平常声（棒読み）の測定</span>
+            <span class="flow-step-state" id="flow-baseline-state">未測定</span>
+          </div>
+          <p class="flow-step-guide">まずは普段の平坦な声（棒読み）で<strong>『あー、マイクのテスト中です』</strong>またはセリフを軽く読んでください。</p>
+          <div class="flow-step-actions">
+            <button type="button" id="btn-flow-baseline" class="btn btn-secondary btn-calib-toggle btn-flow-baseline"
+              data-calib-mode="normal" data-label-default="🎙 棒読みを測定する">
+              <span class="btn-rec-dot"></span>
+              <span class="btn-calib-label">🎙 棒読みを測定する</span>
+            </button>
+            <button type="button" id="btn-flow-skip-baseline" class="btn btn-text btn-small">スキップして本番録音へ ➔</button>
+          </div>
+          <div id="flow-baseline-result" class="flow-baseline-result hidden"></div>
+        </div>
+
+        <div class="flow-step-arrow">➔</div>
+
+        <!-- STEP 3-2: 本番セリフの発声 -->
+        <div class="flow-step-card" id="flow-step-main">
+          <div class="flow-step-header">
+            <span class="flow-step-num">STEP 3-2</span>
+            <span class="flow-step-title">本番セリフの発声</span>
+            <span class="flow-step-state" id="flow-main-state">待機中</span>
+          </div>
+          <p class="flow-step-guide">役になりきり、感情を込めてセリフを発声しましょう。<br><span class="flow-step-sub">マイクボタンを押して録音 →
+              もう一度押して停止</span></p>
+        </div>
+      </div>
+
+      <!-- 事前ボイスチェック（3点アンカーキャリブレーション：detailed_12 / qwen2_audio_hybrid モード時に表示） -->
+      <details id="step3-voice-check-box" class="voice-check-box">
+        <summary class="voice-check-summary">
+          <div class="voice-check-title-wrap">
+            <span class="voice-check-icon">🎙️</span>
+            <span class="voice-check-title">詳細ボイスチェック（任意：②張り声・③ささやきで精度アップ）</span>
+            <span id="step3-vc-ready-msg" class="vc-ready-msg hidden">✓ 基準登録完了（本番セリフへ進めます。さらに精度を上げる場合は②③も登録）</span>
+          </div>
+          <div class="voice-check-badges">
+            <span id="step3-badge-normal" class="vc-status-badge vc-badge-unregistered">①棒読み: 未登録</span>
+            <span id="step3-badge-power" class="vc-status-badge vc-badge-optional">②張り声: オプション</span>
+            <span id="step3-badge-whisper" class="vc-status-badge vc-badge-optional">③ささやき: オプション</span>
+          </div>
+        </summary>
+        <div class="voice-check-body">
+          <p class="voice-check-desc">
+            音漏れ防止マイクに口元を近づけ、最初に<strong>①棒読み</strong>を登録してください（あなたの地声を50点基準にセットします）。必要に応じて②・③も登録すると、熱量や吐息の表現幅がさらに最適化されます。
+          </p>
+          <div class="voice-check-grid">
+            <!-- ① 棒読み (normal) -->
+            <div class="vc-mode-card" data-vc-card="normal">
+              <div class="vc-mode-header">
+                <span class="vc-mode-title">① 棒読み（基準）</span>
+                <span class="vc-mode-tag required">必須・基準50pt</span>
+              </div>
+              <p class="vc-mode-guide">「本日は、ご来場いただき、ありがとうございます」と平坦に読む</p>
+              <button type="button" class="btn btn-secondary btn-small btn-calib-toggle" data-calib-mode="normal">
+                <span class="btn-rec-dot"></span>
+                <span class="btn-calib-label">🎙 ① 棒読みを録音開始</span>
+              </button>
+            </div>
+
+            <!-- ② 張った声 (power) -->
+            <div class="vc-mode-card" data-vc-card="power">
+              <div class="vc-mode-header">
+                <span class="vc-mode-title">② 張った声（上限）</span>
+                <span class="vc-mode-tag optional">任意・上限アンカー</span>
+              </div>
+              <p class="vc-mode-guide">「いくぞ！これが私の全力だ！」と元気よく張った声で読む</p>
+              <button type="button" class="btn btn-secondary btn-small btn-calib-toggle" data-calib-mode="power">
+                <span class="btn-rec-dot"></span>
+                <span class="btn-calib-label">🎙 ② 張った声を録音開始</span>
+              </button>
+            </div>
+
+            <!-- ③ ささやき声 (whisper) -->
+            <div class="vc-mode-card" data-vc-card="whisper">
+              <div class="vc-mode-header">
+                <span class="vc-mode-title">③ ささやき声（吐息）</span>
+                <span class="vc-mode-tag optional">任意・吐息アンカー</span>
+              </div>
+              <p class="vc-mode-guide">「ここだけの秘密だよ…」と内緒話のように息を混ぜて読む</p>
+              <button type="button" class="btn btn-secondary btn-small btn-calib-toggle" data-calib-mode="whisper">
+                <span class="btn-rec-dot"></span>
+                <span class="btn-calib-label">🎙 ③ ささやき声を録音開始</span>
+              </button>
+            </div>
+          </div>
+          <div id="step3-calib-progress" class="baseline-progress hidden">
+            <div class="spinner-small"></div>
+            <span id="step3-calib-progress-text">録音中...</span>
+          </div>
+        </div>
+      </details>
+
       <div class="audio-studio-layout">
         <!-- 左側: シーン情報 & 録音スタジオ -->
         <div class="studio-card audio-recorder-card">
-          <div class="card-chip" id="current-scene-chip">シーン: 覚醒の剣士</div>
+          <div class="studio-top-meta">
+            <div class="card-chip" id="current-scene-chip">シーン: きんたろう</div>
+            <!-- ステップ3でのクロップ済み顔写真サムネイル表示 -->
+            <div id="step3-cropped-thumb-box" class="step3-cropped-thumb-box hidden" title="使用中のクロップ済み顔写真">
+              <img id="step3-cropped-thumb" src="" alt="クロップ済み顔写真">
+              <div class="step3-thumb-meta">
+                <span class="thumb-label">使用中の写真</span>
+                <span class="thumb-sub">頭髪〜肩クロップ</span>
+              </div>
+            </div>
+          </div>
 
           <!-- 録音操作エリア -->
           <div class="recorder-core">
             <div class="record-pulse-container">
               <button id="btn-record-toggle" class="btn-record-main">
                 <div class="record-icon-wrapper">
-                  <svg class="icon-mic" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <svg class="icon-mic" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
                     <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
                     <line x1="12" y1="19" x2="12" y2="22"></line>
@@ -192,8 +348,68 @@
               <canvas id="audio-visualizer-canvas" width="400" height="60"></canvas>
             </div>
 
+            <!-- Qwen2-Audio 精密分析中ローディング演出 -->
+            <div id="qwen-analyzing-overlay" class="qwen-analyzing hidden">
+              <div class="qwen-analyzing-orb">
+                <span></span><span></span><span></span>
+              </div>
+              <div class="qwen-analyzing-text">AIが声の演技ニュアンスと物理変化を精密分析中...</div>
+              <div class="qwen-analyzing-sub" id="qwen-analyzing-sub">経過 0.0 秒（通常 10〜20 秒・初回は約1分）</div>
+            </div>
+
             <!-- 音声解析結果バッジ (解析後表示) -->
             <div id="audio-analysis-result" class="audio-analysis-result hidden">
+              <!-- Qwen2-Audio ハイブリッドモード (qwen2_audio_hybrid) 専用表示 -->
+              <div id="result-qwen-container" class="result-qwen-container hidden">
+                <div class="detailed-emo-header">
+                  <span class="detailed-title">🎭 AI演技ディレクター分析（Qwen2-Audio Hybrid）</span>
+                  <span class="analysis-time-badge" id="qwen-analysis-time">0.0s</span>
+                </div>
+
+                <!-- ① 一言ニュアンス + 2階層感情 -->
+                <div class="qwen-nuance-badge" id="qwen-nuance-badge">—</div>
+                <div class="qwen-tier-row">
+                  <div class="qwen-tier-card qwen-tier-primary" id="qwen-primary-card">
+                    <span class="qwen-tier-label">第1階層 PRIMARY</span>
+                    <div class="qwen-tier-main">
+                      <span class="qwen-tier-icon" id="qwen-primary-icon">🕊️</span>
+                      <span class="qwen-tier-name" id="qwen-primary-name">穏やか・優しさ</span>
+                    </div>
+                    <span class="qwen-tier-score" id="qwen-primary-score">0.0 pt</span>
+                  </div>
+                  <div class="qwen-tier-card qwen-tier-secondary" id="qwen-secondary-card">
+                    <span class="qwen-tier-label" id="qwen-secondary-label">第2階層 NUANCE</span>
+                    <div class="qwen-tier-main">
+                      <span class="qwen-tier-icon" id="qwen-secondary-icon">➖</span>
+                      <span class="qwen-tier-name" id="qwen-secondary-name">ストレート表現（修飾なし）</span>
+                    </div>
+                    <span class="qwen-tier-score" id="qwen-secondary-score">未発動</span>
+                  </div>
+                </div>
+
+                <!-- ② AI演技ディレクター講評 -->
+                <div class="qwen-comment-bubble">
+                  <span class="qwen-comment-avatar">🎬</span>
+                  <p class="qwen-comment-text" id="qwen-comment-text">—</p>
+                </div>
+
+                <!-- ③ 棒読み基準からの物理変化メーター -->
+                <div class="metrics-block">
+                  <h5 class="metrics-block-title">棒読み基準からの物理変化 <span class="qwen-calib-tag" id="qwen-calib-tag">基準:
+                      —</span></h5>
+                  <div class="qwen-delta-grid" id="qwen-delta-grid">
+                    <!-- 動的描画 (JavaScript) -->
+                  </div>
+                </div>
+
+                <!-- ④ 8感情スコア一覧 -->
+                <div class="metrics-block">
+                  <h5 class="metrics-block-title">8感情スコア（基本6 ＋ 修飾2 / 修飾は 60pt 以上で発動）</h5>
+                  <div class="qwen-e8-list" id="qwen-e8-list">
+                    <!-- 動的描画 (JavaScript) -->
+                  </div>
+                </div>
+              </div>
               <!-- 従来モード (standard) 表示 -->
               <div id="result-standard-container" class="result-standard-container">
                 <div class="analysis-badge" id="emotion-badge">
@@ -206,48 +422,49 @@
                 </div>
               </div>
 
-              <!-- 12感情・色気モード (detailed_12) 表示 -->
+              <!-- 2階層感情・ニュアンスモード (detailed_12) 表示 -->
               <div id="result-detailed-container" class="result-detailed-container hidden">
                 <div class="detailed-emo-header">
-                  <span class="detailed-title">✨ 検出された感情・色気（上位2特性）</span>
-                  <span class="analysis-time-badge" id="detailed-analysis-time">0.3s</span>
+                  <span class="detailed-title">✨ 検出された基本感情 ＆ 声質ニュアンス</span>
+                  <span class="analysis-time-badge" id="detailed-analysis-time">0.02s</span>
                 </div>
 
                 <div class="top-emotions-row">
-                  <!-- Top-1 感情 -->
+                  <!-- 第1階層: 主感情 (基本6表情) -->
                   <div class="top-emo-card primary-emo" id="top1-emo-card">
                     <div class="emo-card-header">
-                      <span class="emo-card-rank">TOP 1</span>
-                      <span class="emo-card-score"><strong id="top1-score">88.5</strong> pt</span>
+                      <span class="emo-card-rank">PRIMARY</span>
+                      <span class="emo-card-score" id="top1-score-wrap"><strong id="top1-score">88.5</strong> pt</span>
                     </div>
                     <div class="emo-card-main">
-                      <span class="emo-card-icon" id="top1-icon">💋</span>
-                      <span class="emo-card-name" id="top1-name">色気・官能</span>
+                      <span class="emo-card-icon" id="top1-icon">🌟</span>
+                      <span class="emo-card-name" id="top1-name">歓喜・笑顔</span>
                     </div>
                     <div class="emo-bar-track">
                       <div class="emo-bar-fill primary-fill" id="top1-bar"></div>
                     </div>
                   </div>
 
-                  <!-- Top-2 感情 -->
+                  <!-- 第2階層: 声質ニュアンス修飾 (2種 + 修飾なし) -->
                   <div class="top-emo-card secondary-emo" id="top2-emo-card">
                     <div class="emo-card-header">
-                      <span class="emo-card-rank">TOP 2</span>
-                      <span class="emo-card-score"><strong id="top2-score">76.2</strong> pt</span>
+                      <span class="emo-card-rank" id="top2-rank-label">NUANCE</span>
+                      <span class="emo-card-score" id="top2-score-wrap"><strong id="top2-score">76.2</strong> pt</span>
                     </div>
                     <div class="emo-card-main">
-                      <span class="emo-card-icon" id="top2-icon">💖</span>
-                      <span class="emo-card-name" id="top2-name">愛情・親愛</span>
+                      <span class="emo-card-icon" id="top2-icon">💋</span>
+                      <span class="emo-card-name" id="top2-name">色気・吐息ニュアンス</span>
                     </div>
-                    <div class="emo-bar-track">
+                    <div class="emo-bar-track" id="top2-bar-track">
                       <div class="emo-bar-fill secondary-fill" id="top2-bar"></div>
                     </div>
                   </div>
                 </div>
 
                 <!-- 詳細アコーディオン展開ボタン -->
-                <button type="button" id="btn-toggle-detailed-metrics" class="btn btn-text btn-small btn-toggle-metrics">
-                  <span>📊 7つの基礎指標 ＆ 12感情全スコアを表示</span>
+                <button type="button" id="btn-toggle-detailed-metrics"
+                  class="btn btn-text btn-small btn-toggle-metrics">
+                  <span>📊 7つの基礎指標 ＆ 全8項目（基本6＋修飾2）スコアを表示</span>
                   <span class="accordion-arrow">▼</span>
                 </button>
 
@@ -261,7 +478,7 @@
                   </div>
 
                   <div class="metrics-block">
-                    <h5 class="metrics-block-title">12感情・色気スコア一覧</h5>
+                    <h5 class="metrics-block-title">2階層感情スコア一覧（基本6表情 ＋ ニュアンス修飾2種）</h5>
                     <div class="e12-list" id="e12-metrics-list">
                       <!-- 動的描画 (JavaScript) -->
                     </div>
@@ -317,7 +534,8 @@
         <div class="generating-texts">
           <div class="emotion-glow-tag" id="generating-emotion-tag">🔥 BURNING MODE</div>
           <h2 class="generating-title" id="generating-status-title">顔特徴と魂のセリフを錬成中...</h2>
-          <p class="generating-desc" id="generating-status-desc">Animagine XL & InstantID 高精細パイプラインが稼働しています（最大約2分）</p>
+          <p class="generating-desc" id="generating-status-desc">Animagine XL & IP-Adapter Plus Face
+            高精細パイプラインが稼働しています（最大約2分）</p>
 
           <!-- プログレスバー -->
           <div class="progress-bar-track">
@@ -340,34 +558,51 @@
     <!-- STEP 5: 完成アートカード表示 ＆ 保存・印刷 -->
     <section id="step-5-card" class="wizard-step">
       <div class="step-header text-center no-print">
-        <h2 class="step-title">あなたのアニメ転生キャラクターが誕生しました！</h2>
+        <h2 class="step-title">あなたのキャラクターが誕生しました！</h2>
         <p class="step-desc">記念カードをダウンロード保存またはその場でプリントアウトできます。</p>
       </div>
 
       <div class="card-display-layout">
-        <!-- アートカード本体（印刷対象） -->
-        <div class="art-card" id="printable-art-card">
-          <div class="card-inner-frame">
-            <!-- イラスト部分 -->
-            <div class="card-illustration-wrapper">
-              <img id="generated-card-image" class="card-image" src="" alt="生成イラスト">
-              <div class="card-emotion-watermark" id="card-emotion-badge">BURNING</div>
-            </div>
-
-            <!-- キャプション・セリフエリア -->
-            <div class="card-caption-container">
-              <div class="card-header-row">
-                <span class="card-scene-title" id="card-scene-title">覚醒の剣士</span>
-                <span class="card-brand">StoryWeaver Live</span>
+        <!-- カード＋履歴カラム -->
+        <div class="card-column">
+          <!-- アートカード本体（印刷対象） -->
+          <div class="art-card" id="printable-art-card">
+            <div class="card-inner-frame">
+              <!-- イラスト部分 -->
+              <div class="card-illustration-wrapper">
+                <img id="generated-card-image" class="card-image" src="" alt="生成イラスト">
+                <div class="card-emotion-watermark" id="card-emotion-badge">BURNING</div>
               </div>
-              <blockquote class="card-dialogue-quote">
-                <span class="quote-mark">“</span>
-                <span class="card-script-text" id="card-script-text">まだだ…俺は絶対に諦めない</span>
-                <span class="quote-mark">”</span>
-              </blockquote>
-              <div class="card-footer-row">
-                <span class="card-meta-date" id="card-meta-date">2026.10.23 AI Creators Market</span>
-                <span class="card-meta-inst">Insta-ID: SW-7749</span>
+
+              <!-- キャプション・セリフエリア -->
+              <div class="card-caption-container">
+                <div class="card-header-row">
+                  <span class="card-scene-title" id="card-scene-title">覚醒の剣士</span>
+                  <span class="card-brand">StoryWeaver Live</span>
+                </div>
+                <blockquote class="card-dialogue-quote">
+                  <span class="quote-mark">“</span>
+                  <span class="card-script-text" id="card-script-text">まだだ…俺は絶対に諦めない</span>
+                  <span class="quote-mark">”</span>
+                </blockquote>
+                <div class="card-footer-row">
+                  <span class="card-meta-date" id="card-meta-date">2026.10.23 AI Creators Market</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 生成履歴ギャラリー（カルーセルビュー） -->
+          <div class="card-history-container no-print" id="card-history-container">
+            <div class="history-nav-row">
+              <button id="btn-history-prev" class="btn-history-nav" title="前の画像へ" disabled>◀</button>
+              <span id="history-page-indicator" class="history-page-indicator">Ver. 1 / 1</span>
+              <button id="btn-history-next" class="btn-history-nav" title="次の画像へ" disabled>▶</button>
+            </div>
+            <!-- はみ出しを非表示にするビューポート枠 -->
+            <div class="card-carousel-viewport" id="card-carousel-viewport">
+              <div class="card-carousel-track" id="card-history-strip">
+                <!-- サムネイル（幅210px × 高210px）が動的に生成されます -->
               </div>
             </div>
           </div>
@@ -376,15 +611,33 @@
         <!-- コントロールパネル -->
         <div class="card-actions-panel no-print">
           <div class="panel-section">
+            <h3 class="panel-title">イラスト再生成</h3>
+            <div class="panel-buttons">
+              <button id="btn-regenerate-card" class="btn btn-secondary btn-large btn-regen">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                </svg>
+                <span>イラストを再生成</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="panel-section">
             <h3 class="panel-title">作品のお持ち帰り</h3>
             <div class="panel-buttons">
               <button id="btn-download-card" class="btn btn-primary btn-large btn-glow">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                </svg>
                 <span>PNG アートカード保存</span>
               </button>
 
               <button id="btn-print-card" class="btn btn-secondary btn-large">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                  <rect x="6" y="14" width="12" height="8"></rect>
+                </svg>
                 <span>その場で印刷する</span>
               </button>
             </div>
@@ -437,9 +690,36 @@
             <label for="select-emotion-mode" class="form-label">感情分析エンジン・モード切替</label>
             <select id="select-emotion-mode" class="form-select">
               <option value="standard">従来モード（SenseVoice + 声量5段階判定：BURNING / COOL等）</option>
-              <option value="detailed_12">詳細12感情モード（3次元VAD + openSMILE eGeMAPSv02：色気・官能／慈愛等）</option>
+              <option value="detailed_12">詳細感情モード（2階層方式：基本6表情 ＋ 声質ニュアンス修飾2種 [librosa]）</option>
+              <option value="qwen2_audio_hybrid">Qwen2-Audio ハイブリッドモード（4bit Audio-LLM ＋ 棒読み物理差分注入）</option>
             </select>
-            <span class="form-hint">※ 「詳細12感情モード」を選択すると、息漏れ・声の柔らかさ・覚醒度から12種類の微細な感情・色気を解析しプロンプトへ反映します。</span>
+            <span class="form-hint">※
+              「詳細感情モード」を選択すると、7つの音響特徴から基本6表情（歓喜・情熱・哀愁・驚愕・不敵・穏やか）を排他選択し、吐息や揺らぎの条件を満たしたときのみニュアンス修飾（色気・照れ）を合成します。</span>
+            <span class="form-hint">※ 「Qwen2-Audio ハイブリッドモード」は Qwen2-Audio-7B（4bit・VRAM
+              約6GB）が声の演技ニュアンスと棒読み基準からの物理変化を統合分析し、AI演技講評を生成します（1回 約15秒・初回ロード時は +約50秒）。画像生成前に自動で VRAM を解放します。</span>
+          </div>
+
+          <!-- Qwen2-Audio VRAM 管理 -->
+          <div class="form-group qwen2-vram-group" id="qwen2-vram-group">
+            <label class="form-label">Qwen2-Audio VRAM 管理</label>
+            <div class="qwen2-vram-row">
+              <span class="qwen2-vram-status" id="qwen2-vram-status">状態: 未確認</span>
+              <button type="button" id="btn-qwen2-refresh-status" class="btn btn-glass btn-small">↻ 状態更新</button>
+              <button type="button" id="btn-qwen2-unload" class="btn btn-secondary btn-small">🧹 Qwen2-Audio VRAM
+                解放</button>
+            </div>
+            <span class="form-hint">※ ComfyUI や Ollama の動作が重い・OOM が疑われる場合に手動で Qwen2-Audio
+              をアンロードします（次回分析時に自動再ロード）。</span>
+          </div>
+
+          <!-- ComfyUI ワークフロー (JSON) 選択 -->
+          <div class="form-group mode-selection-group">
+            <label for="select-workflow" class="form-label">ComfyUI ワークフロー (JSON)</label>
+            <select id="select-workflow" class="form-select">
+              <option value="storyweaver_anime_api.json">標準 (FaceDetailer あり / 30+20 steps)</option>
+              <option value="storyweaver_anime_nofd_api.json">高速 (FaceDetailer なし / 30 steps)</option>
+            </select>
+            <span class="form-hint">※ 選択したワークフローJSONが `config.json` (`WORKFLOW_PATH`) に保存され、展示モードの生成に使用されます。</span>
           </div>
 
           <div class="calibration-box">
@@ -473,12 +753,12 @@
             <button id="btn-save-threshold" class="btn btn-primary">設定を保存 (config.json)</button>
           </div>
 
-          <!-- 12感情棒読みベースライン登録ボックス -->
+          <!-- 12感情3点ボイスチェック（ベースライン＆アンカー登録）ボックス -->
           <div class="calibration-box baseline-box" id="baseline-calibration-box">
-            <h4 class="calib-title">🎯 12感情・色気スコア用 棒読み基準値（ベースライン）登録</h4>
+            <h4 class="calib-title">🎯 12感情・色気スコア用 3点ボイスチェック（基準 ＆ アンカー登録）</h4>
             <p class="calib-desc">
-              「詳細12感情モード」では、この棒読み基準値を「50点」とし、来場者の声の変化（吐息・柔らかさ・熱量）を測定します。<br>
-              マイクボタンを押し、感情を込めずに平坦なトーンで3.5秒間セリフを発声してください。
+              「詳細感情モード」では、①棒読みを「50点基準」とし、②張った声（上限アンカー）・③ささやき声（吐息/下限アンカー）で声のダイナミックレンジを個人に合わせて最適化します。<br>
+              ボタンを押して録音を開始し、セリフを読み終えたらもう一度ボタンを押して停止・登録してください（最大6秒で自動停止）。※①を再登録すると②・③はリセットされます。
             </p>
 
             <div class="baseline-status-card" id="baseline-status-card">
@@ -486,19 +766,64 @@
                 <span>登録状態: <strong id="baseline-status-text" class="text-success">登録済み</strong></span>
                 <span id="baseline-updated-at" class="meta-sub">最終更新: 未登録</span>
               </div>
+              <div class="voice-check-badges" style="margin-top: 4px;">
+                <span id="staff-badge-normal" class="vc-status-badge vc-badge-unregistered">①棒読み: 未登録</span>
+                <span id="staff-badge-power" class="vc-status-badge vc-badge-optional">②張り声: オプション</span>
+                <span id="staff-badge-whisper" class="vc-status-badge vc-badge-optional">③ささやき: オプション</span>
+              </div>
               <div class="baseline-preview-chips" id="baseline-preview-chips">
-                <!-- JavaScriptで主要基準値を表示 -->
+                <!-- JavaScriptで主要基準値（RMS / F0 / HNR / Breath / Jitter 等）を表示 -->
               </div>
             </div>
 
-            <div class="baseline-action-row">
-              <button id="btn-record-baseline" class="btn btn-secondary btn-icon">
-                <span class="btn-rec-dot"></span>
-                <span id="btn-record-baseline-text">マイクで棒読みを録音・登録 (3.5秒)</span>
-              </button>
+            <div class="voice-check-grid" style="margin-top: 10px;">
+              <!-- ① 棒読み -->
+              <div class="vc-mode-card" data-vc-card="normal">
+                <div class="vc-mode-header">
+                  <span class="vc-mode-title">① 棒読み（基準）</span>
+                  <span class="vc-mode-tag required">必須・50pt</span>
+                </div>
+                <p class="vc-mode-guide">「本日は、ご来場いただき、ありがとうございます」と平坦に読む</p>
+                <button type="button" id="btn-record-baseline" class="btn btn-secondary btn-small btn-calib-toggle"
+                  data-calib-mode="normal">
+                  <span class="btn-rec-dot"></span>
+                  <span id="btn-record-baseline-text" class="btn-calib-label">🎙 ① 棒読みを録音開始</span>
+                </button>
+              </div>
+
+              <!-- ② 張った声 -->
+              <div class="vc-mode-card" data-vc-card="power">
+                <div class="vc-mode-header">
+                  <span class="vc-mode-title">② 張った声（上限）</span>
+                  <span class="vc-mode-tag optional">任意・上限</span>
+                </div>
+                <p class="vc-mode-guide">「いくぞ！これが私の全力だ！」と元気よく張った声で読む</p>
+                <button type="button" id="btn-record-baseline-power"
+                  class="btn btn-secondary btn-small btn-calib-toggle" data-calib-mode="power">
+                  <span class="btn-rec-dot"></span>
+                  <span class="btn-calib-label">🎙 ② 張った声を録音開始</span>
+                </button>
+              </div>
+
+              <!-- ③ ささやき声 -->
+              <div class="vc-mode-card" data-vc-card="whisper">
+                <div class="vc-mode-header">
+                  <span class="vc-mode-title">③ ささやき声（吐息）</span>
+                  <span class="vc-mode-tag optional">任意・吐息</span>
+                </div>
+                <p class="vc-mode-guide">「ここだけの秘密だよ…」と内緒話のように息を混ぜて読む</p>
+                <button type="button" id="btn-record-baseline-whisper"
+                  class="btn btn-secondary btn-small btn-calib-toggle" data-calib-mode="whisper">
+                  <span class="btn-rec-dot"></span>
+                  <span class="btn-calib-label">🎙 ③ ささやき声を録音開始</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="baseline-action-row" style="margin-top: 8px;">
               <div id="baseline-record-progress" class="baseline-progress hidden">
                 <div class="spinner-small"></div>
-                <span id="baseline-progress-text">録音中... 残り 3 秒</span>
+                <span id="baseline-progress-text">録音中...</span>
               </div>
             </div>
           </div>
@@ -507,7 +832,7 @@
         <!-- タブ2: シーン管理 (CRUD) -->
         <div id="tab-scenes" class="tab-pane">
           <div class="scenes-admin-header">
-            <span class="admin-caption">展示シーン一覧の追加・編集・削除</span>
+            <span class="admin-caption">展示シーン一覧の追加・編集・削除（Positive / シーン別Negativeプロンプト対応）</span>
             <button id="btn-add-new-scene" class="btn btn-secondary btn-small">+ 新規シーン追加</button>
           </div>
 
@@ -563,6 +888,7 @@
   <!-- Toast Notification Container -->
   <div id="toast-container" class="toast-container"></div>
 
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=20261106_standby"></script>
 </body>
+
 </html>

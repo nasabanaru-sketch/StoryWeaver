@@ -1,0 +1,81 @@
+StoryWeaver Live のプロンプト統合パイプライン仕様（Animagine XL 3.1 + VLM外見抽出 + 音声感情解析）に完全準拠した、シーン別 Positive / Negative プロンプト生成用の指示プロンプトを作成しました。
+
+### プロンプト設計の要点・理由
+
+1. **自動挿入タグとの競合・重複の排除**:
+本システムの `server.py` では、Positive プロンプト（`Node_Pos_Base`）を `{gender_tag}, solo, {physical_traits}, {expression_prompt}, {scene_prompt}, {QUALITY_TAGS}` の順序で自動結合します。そのため、事前準備する `scene_prompt`（Pos）に「性別・人数・髪型・眼鏡・表情・品質タグ」が含まれると、VLMが抽出した来場者の外見や音声から判定した感情と衝突するため、これらを厳格に除外するルールを組み込んでいます。
+
+
+2. **共通ネガティブ（`NEG_BASE`）との役割分担と重み制限**:
+システム側で `nsfw, lowres, worst quality, photorealistic, 3d` 等の共通ネガティブおよび髪型逆バイアスが自動付与されます。そのため、`scene_neg_prompt`（Nega）は「世界観と矛盾する要素（時代錯誤な背景や小物）」や「顔を隠してしまう装備」の除外に専念させます。また、本システムの実機検証知見に基づき、画面全体のボケや構図崩れを防ぐためネガティブの強調重みを `1.2` 以下に制限しています。
+
+3. **IP-Adapter Plus Face / FaceDetailer への最適化**:
+顔特徴の反映と FaceDetailer（`face_yolov8m.pt`）による顔領域の検出を確実に行うため、カメラに顔が正面〜斜め前向きで明確に写るポーズ・アングルに限定させています。
+
+
+---
+
+### シーン作成用プロンプト（AIへの指示テンプレート）
+
+以下の枠内のテキストをコピーし、末尾の「【作りたい場面の説明】」に希望のシチュエーションを記入してAI（Gemini 等）に入力してください。スタッフ設定画面・ワークベンチへのコピペ用テキストと、`presets.json` 用のJSONデータの両方が生成されます。
+
+
+
+
+
+```markdown
+あなたは、体験型AIイラスト生成システム「StoryWeaver Live」専用のプロンプトエンジニアです。
+私が末尾に入力する【作りたい場面の説明】に基づき、画像生成エンジン「Animagine XL 3.1 (SDXL)」に最適化したシーンプリセット（Positiveプロンプト、Negativeプロンプト、シーン名、台本セリフ）を作成してください。
+
+## 1. システムの内部結合仕様（厳守事項）
+本システムは、あなたが作成する `scene_prompt` (Pos) と `scene_neg_prompt` (Nega) を、プログラム側で以下のテンプレートに自動挿入してComfyUIへ送信します。
+
+- **Positive結合式**:
+  `{gender_tag}, solo, {physical_traits}, {expression_prompt}, {scene_prompt}, masterpiece, best quality, very aesthetic, absurdres`
+- **Negative結合式**:
+  `{negative_hair_bias}, {scene_neg_prompt}, nsfw, lowres, (bad), text, error, fewer, extra, missing, worst quality, jpeg artifacts, low quality, watermark, unfinished, displeasing, oldest, early, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract], photorealistic, realistic, 3d`
+
+## 2. `scene_prompt` (Pos) の作成ルール
+1. **絶対に含めてはいけない要素（システム側で自動挿入されるため）**:
+   - 性別・人数（`1boy`, `1girl`, `solo` 等）
+   - 髪型・髪色・生え際・眼鏡・髭・目や眉の形（来場者の顔写真からVLMが自動抽出するため）
+   - 表情・口の開閉・涙・笑顔等（来場者の声から音声解析AIが自動挿入するため）
+   - 品質タグ（`masterpiece`, `best quality`, `very aesthetic`, `absurdres` 等）
+2. **必ず含めるべき要素（英語のカンマ区切りタグ形式、7〜12要素程度）**:
+   - **ジャンル・世界観**: （例: `fantasy anime`, `cyberpunk anime`, `steampunk`, `japanese samurai anime` 等）
+   - **背景・ロケーション**: （例: `dramatic battlefield`, `neon city night background`, `ancient shrine` 等）
+   - **服装・衣装・装備**: ※頭髪や顔を覆わない服装にすること（例: `futuristic tactical gear`, `knight armor`, `wizard robe` 等）
+   - **動的ポーズ・アクション**: ※必ず顔が正面〜斜め前を向き、上半身〜顔が大きく写る構図（`upper body`, `cowboy shot`, `dynamic pose`, `leaning forward` 等）にすること。後ろ向きや極端な遠景は不可。
+   - **エフェクト・ライティング**: （例: `flying sparks`, `glowing magic circle`, `cinematic lighting`, `backlighting`, `vibrant colors` 等）
+
+## 3. `scene_neg_prompt` (Nega) の作成ルール
+1. **絶対に含めてはいけない要素**:
+   - 共通ネガティブに既にある品質タグや実写タグ（`lowres`, `worst quality`, `realistic`, `3d`, `text` 等）
+   - 髪型に関するタグ（`bangs`, `short hair`, `long hair` 等）
+2. **必ず含めるべき要素（英語のカンマ区切りタグ形式、5〜10要素程度）**:
+   - **顔検出（FaceDetailer）や髪型再現を阻害する要素**: フルフェイスヘルメット、仮面、フード目深被り、後ろ姿など、そのシーンで発生しやすい顔隠れ・頭髪隠れ要因（例: `helmet, full face mask, hood up, covering face, from behind` 等）
+   - **世界観と矛盾するノイズ要素**: 
+     - 和風・ファンタジー系の場合：現代建築、電線、自動車、銃器、ネオン、スマートフォンなど（例: `modern buildings, cars, power lines, modern clothes, firearm`）
+     - 現代・SF系の場合：時代錯誤な要素や不要な背景ノイズなど
+   - **構図・小物の破綻防止要素**: 武器や手が不自然に増殖しやすいシーンでの抑制タグ等
+3. **重み付けの制限（重要）**:
+   - ネガティブプロンプトで強調括弧 `(tag:1.2)` を使う場合は、**重みを最大でも `1.2` 以下**に抑え、強調タグは2個までとしてください（強い重みを多数入れると画面全体のボケや構図崩れが発生するため）。基本は重みなしのプレーンなタグで記述してください。
+
+## 4. 出力フォーマット
+ スタッフ設定・作りこみワークベンチ入力用
+- **シーンID (`id`)**: `scene_XX`（英数字スネークケース）
+- **シーン名 (`name`)**: 来場者が直感的に選べる魅力的な日本語タイトル（10文字前後）
+- **事前セリフ (`script_text`)**: 来場者が魂を込めて発声しやすい日本語の決めゼリフ（15〜30文字程度、カギ括弧なし）
+- **Pos (`scene_prompt`)**: コピー用コードブロック
+- **Nega (`scene_neg_prompt`)**: コピー用コードブロック
+- **設定の意図・解説**: なぜこのPos/Negaタグを選定したかの簡潔な説明
+
+```
+
+---
+
+【作りたい場面の説明】
+画面は一人のみ。白衣を上から羽織っている。その人物は悪の幹部である。背景には、人口知能。悪の組織っぽい室内にいる。
+```
+
+---

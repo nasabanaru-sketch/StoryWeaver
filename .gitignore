@@ -1,4 +1,80 @@
-# Python
+# ==============================================================================
+# StoryWeaver .gitignore
+# Strictly exclude models, media, secrets, logs, and sensitive personal data
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Media Files (Photos, Images, Audio - Personal / Sensitive Data Protection)
+# ------------------------------------------------------------------------------
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.gif
+*.bmp
+*.tiff
+*.svg
+*.raw
+*.heic
+
+*.wav
+*.mp3
+*.ogg
+*.flac
+*.m4a
+*.aac
+*.wma
+*.wav*
+
+# Test assets directory containing personal photos and voices
+test_assets/
+
+# ------------------------------------------------------------------------------
+# 2. Large Model Files & Checkpoints
+# ------------------------------------------------------------------------------
+*.safetensors
+*.ckpt
+*.pt
+*.bin
+*.onnx
+*.gguf
+*.pth
+
+# ------------------------------------------------------------------------------
+# 3. Personal Data, Outputs, Logs, and Temporary Directories
+# ------------------------------------------------------------------------------
+outputs/
+output/
+input/
+inputs/
+results/
+data/
+records/
+audio/
+voices/
+photos/
+images/
+temp/
+tmp/
+tmp_audio/
+
+*.log
+logs/
+
+# ------------------------------------------------------------------------------
+# 4. Authentication, Credentials & Environment Files
+# ------------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.token
+credentials.json
+
+# ------------------------------------------------------------------------------
+# 5. Cache, Python Runtime & System Files
+# ------------------------------------------------------------------------------
 __pycache__/
 *.py[cod]
 *$py.class
@@ -9,48 +85,24 @@ venv/
 .venv/
 ENV/
 
-# Distribution / packaging
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Testing & Cache
 .pytest_cache/
 .coverage
 htmlcov/
 
-# Logs
-*.log
-
-# Large Model Files (Do not commit models to git)
-*.safetensors
-*.bin
-*.pt
-*.pth
-*.onnx
-*.ckpt
-
-# Output images & audio files
-/outputs/
-/temp/
-*.wav
-*.mp3
-
-# OS specific
+.DS_Store
 Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
-.DS_Store
+
+.agents/task_log.md
+
+# IDE & Editor files
+.vscode/
+.idea/
+
+# Backups & local scratch files
+*.bak
+*.backup
+*BackUP*
+*_back

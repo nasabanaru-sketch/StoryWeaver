@@ -17,16 +17,16 @@
       "scheduler": "karras",
       "denoise": 1,
       "model": [
-        "18",
+        "29",
         0
       ],
       "positive": [
-        "18",
-        1
+        "5",
+        0
       ],
       "negative": [
-        "18",
-        2
+        "6",
+        0
       ],
       "latent_image": [
         "7",
@@ -113,75 +113,6 @@
       "title": "画像を読み込む"
     }
   },
-  "13": {
-    "inputs": {
-      "control_net_name": "diffusion_pytorch_model.safetensors"
-    },
-    "class_type": "ControlNetLoader",
-    "_meta": {
-      "title": "ControlNetモデルを読み込む"
-    }
-  },
-  "14": {
-    "inputs": {
-      "instantid_file": "ip-adapter.bin"
-    },
-    "class_type": "InstantIDModelLoader",
-    "_meta": {
-      "title": "Load InstantID Model"
-    }
-  },
-  "17": {
-    "inputs": {
-      "provider": "CPU"
-    },
-    "class_type": "InstantIDFaceAnalysis",
-    "_meta": {
-      "title": "InstantID Face Analysis"
-    }
-  },
-  "18": {
-    "inputs": {
-      "ip_weight": 0.65,
-      "cn_strength": 0.2,
-      "start_at": 0,
-      "end_at": 0.85,
-      "noise": 0,
-      "combine_embeds": "average",
-      "instantid": [
-        "14",
-        0
-      ],
-      "insightface": [
-        "17",
-        0
-      ],
-      "control_net": [
-        "13",
-        0
-      ],
-      "image": [
-        "12",
-        0
-      ],
-      "model": [
-        "29",
-        0
-      ],
-      "positive": [
-        "5",
-        0
-      ],
-      "negative": [
-        "6",
-        0
-      ]
-    },
-    "class_type": "ApplyInstantIDAdvanced",
-    "_meta": {
-      "title": "Apply InstantID Advanced main"
-    }
-  },
   "20": {
     "inputs": {
       "guide_size": 1024,
@@ -217,7 +148,7 @@
         0
       ],
       "model": [
-        "25",
+        "30",
         0
       ],
       "clip": [
@@ -229,12 +160,12 @@
         2
       ],
       "positive": [
-        "25",
-        1
+        "32",
+        0
       ],
       "negative": [
-        "25",
-        2
+        "6",
+        0
       ],
       "bbox_detector": [
         "22",
@@ -253,48 +184,6 @@
     "class_type": "UltralyticsDetectorProvider",
     "_meta": {
       "title": "UltralyticsDetectorProvider"
-    }
-  },
-  "25": {
-    "inputs": {
-      "ip_weight": 0.4,
-      "cn_strength": 0,
-      "start_at": 0,
-      "end_at": 0.75,
-      "noise": 0,
-      "combine_embeds": "average",
-      "instantid": [
-        "14",
-        0
-      ],
-      "insightface": [
-        "17",
-        0
-      ],
-      "control_net": [
-        "13",
-        0
-      ],
-      "image": [
-        "12",
-        0
-      ],
-      "model": [
-        "29",
-        0
-      ],
-      "positive": [
-        "32",
-        0
-      ],
-      "negative": [
-        "6",
-        0
-      ]
-    },
-    "class_type": "ApplyInstantIDAdvanced",
-    "_meta": {
-      "title": "Apply InstantID Advanced"
     }
   },
   "26": {
@@ -329,11 +218,11 @@
   },
   "29": {
     "inputs": {
-      "weight": 0.35,
+      "weight": 0.6,
       "weight_type": "linear",
       "combine_embeds": "concat",
       "start_at": 0,
-      "end_at": 0.65,
+      "end_at": 0.75,
       "embeds_scaling": "V only",
       "model": [
         "1",
@@ -355,6 +244,36 @@
     "class_type": "IPAdapterAdvanced",
     "_meta": {
       "title": "IPAdapter Advanced"
+    }
+  },
+  "30": {
+    "inputs": {
+      "weight": 0.4,
+      "weight_type": "linear",
+      "combine_embeds": "concat",
+      "start_at": 0,
+      "end_at": 0.75,
+      "embeds_scaling": "V only",
+      "model": [
+        "1",
+        0
+      ],
+      "ipadapter": [
+        "27",
+        0
+      ],
+      "image": [
+        "12",
+        0
+      ],
+      "clip_vision": [
+        "28",
+        0
+      ]
+    },
+    "class_type": "IPAdapterAdvanced",
+    "_meta": {
+      "title": "IPAdapter Advanced FD"
     }
   },
   "32": {

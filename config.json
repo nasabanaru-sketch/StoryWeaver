@@ -7,9 +7,10 @@
   "COMFYUI_URL": "http://127.0.0.1:8188",
   "COMFYUI_TIMEOUT_SEC": 500,
   "COMFYUI_INPUT_DIR": "C:\\pinokio\\api\\comfy.git\\app\\input",
-  "WORKFLOW_PATH": "storyweaver_anime_api.json",
+  "WORKFLOW_PATH": "storyweaver_anime_nofd_api.json",
   "PRESETS_PATH": "presets.json",
   "OUTPUT_CARDS_DIR": "outputs/cards",
+  "CAPTURED_FACES_DIR": "outputs/captured_faces",
   "TEMP_AUDIO_DIR": "tmp_audio",
   "SENSEVOICE_MODEL": "C:\\Users\\nasab\\.cache\\modelscope\\models\\iic--SenseVoiceSmall\\snapshots\\master",
   "VRAM_STANDBY_MAX_MB": 8192,
@@ -17,6 +18,8 @@
   "VRAM_FREE_STRICT": false,
   "SESSION_TTL_SEC": 900,
   "ANALYZE_WAIT_TIMEOUT_SEC": 120,
-  "emotion_mode": "detailed_12",
+  "emotion_mode": "qwen2_audio_hybrid",
+  "QWEN2_AUDIO_MODEL": "Qwen/Qwen2-Audio-7B-Instruct",
+  "QWEN2_AUDIO_AUTO_UNLOAD": true,
   "VRAM_PEAK_LIMIT_MB": 14848
 }

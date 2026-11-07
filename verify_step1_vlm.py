@@ -21,7 +21,7 @@ from pathlib import Path
 import subprocess
 import sys
 import time
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 
 # Windows コンソールでの文字化け防止
 if sys.platform == "win32":
@@ -89,6 +89,20 @@ class FaceVlmExtraction(BaseModel):
         ...,
         description="Facial hair type. Default to 'none' if none or if face_detected is false.",
     )
+    # 2026-10-26 商用化（InstantID 排除）の補完: 目・眉の静的な形状。
+    # 既定値付きの任意フィールドとし、VLM が省略してもパースが失敗しないようにする。
+    eye_shape: Literal["none", "tsurime", "tareme", "narrow eyes"] = Field(
+        "none",
+        description=(
+            "Static eye shape only (NOT expression): 'tsurime' = outer corners clearly upturned; "
+            "'tareme' = outer corners clearly droopy; 'narrow eyes' = naturally thin/narrow eyes. "
+            "Use 'none' if average, unclear, hidden by sunglasses, or face_detected is false."
+        ),
+    )
+    eyebrows: Literal["none", "thick eyebrows", "thin eyebrows"] = Field(
+        "none",
+        description="Static eyebrow thickness. Use 'none' if average/unclear or face_detected is false.",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -102,7 +116,7 @@ CRITICAL INSTRUCTIONS:
    - If a clear human face is visible, set `face_detected` to true.
    - If NO face is present, or the face is covered by hands/objects or unidentifiable, set `face_detected` to false.
      When `face_detected` is false, populate all other fields with exact defaults:
-     gender_tag="1boy", hair_length="short hair", hair_style_details="", has_bangs=false, exposed_forehead=false, glasses="none", facial_hair="none".
+     gender_tag="1boy", hair_length="short hair", hair_style_details="", has_bangs=false, exposed_forehead=false, glasses="none", facial_hair="none", eye_shape="none", eyebrows="none".
 
 2. STRICTLY NO FACIAL EXPRESSIONS OR EMOTIONS:
    - Facial expressions will be injected separately based on voice emotion.
@@ -212,6 +226,12 @@ def rule_based_transform(extracted: FaceVlmExtraction) -> tuple[str, str, list[s
     if extracted.facial_hair in ("stubble", "beard", "mustache"):
         traits.append(extracted.facial_hair)
 
+    # 目・眉の静的形状（表情語ではない。none は付与しない）
+    if extracted.eye_shape in ("tsurime", "tareme", "narrow eyes"):
+        traits.append(extracted.eye_shape)
+    if extracted.eyebrows in ("thick eyebrows", "thin eyebrows"):
+        traits.append(extracted.eyebrows)
+
     # 額露出・前髪判定
     # ルール: has_bangs == False または exposed_forehead == True の場合、
     # physical_traits に exposed forehead を確実に含め、
@@ -251,6 +271,7 @@ def call_ollama_vlm(
     model: str,
     ollama_url: str = "http://localhost:11434/api/generate",
     timeout: int = 30,
+    keep_alive: Union[int, str] = 0,
 ) -> dict:
     print(f"  [1/4] 画像エンコード中: {image_path.name}", flush=True)
     b64_img = encode_image_to_base64(image_path)
@@ -262,24 +283,27 @@ def call_ollama_vlm(
         "images": [b64_img],
         "format": schema,
         "stream": False,
-        "keep_alive": 0,  # 推論直後に VRAM からアンロード
+        "keep_alive": keep_alive,  # 0: 推論直後に解放 / "15m" 等: Step 3 音声分析まで VRAM 保持
         "options": {
             "temperature": 0.1,  # 決定論的抽出
         },
     }
 
-    print(f"  [2/4] Ollama API にリクエスト送信中 (model={model}, timeout={timeout}s)...", flush=True)
+    print(
+        f"  [2/4] Ollama API にリクエスト送信中 (model={model}, timeout={timeout}s, keep_alive={keep_alive})...",
+        flush=True,
+    )
     t0 = time.perf_counter()
     resp = requests.post(ollama_url, json=payload, timeout=timeout)
     t1 = time.perf_counter()
     wall_time_ms = round((t1 - t0) * 1000, 1)
     print(f"  [3/4] Ollama 応答受信 (所要時間: {wall_time_ms} ms)", flush=True)
 
-    # アンロード後の VRAM 計測
-    # keep_alive: 0 のためモデルアンロードが非同期で行われる場合を考慮し微小待機
-    time.sleep(0.5)
+    # keep_alive == 0 の場合のみアンロード後の VRAM 計測のため微小待機
+    if keep_alive == 0 or keep_alive == "0":
+        time.sleep(0.5)
     vram_used_mb = get_gpu_vram_mb()
-    print(f"  [4/4] 解放後 VRAM 取得: {vram_used_mb} MB", flush=True)
+    print(f"  [4/4] 推論後 VRAM 取得: {vram_used_mb} MB (keep_alive={keep_alive})", flush=True)
 
     if resp.status_code != 200:
         raise RuntimeError(f"Ollama API returned HTTP {resp.status_code}: {resp.text}")
@@ -457,6 +481,8 @@ def main():
         print(f"    - exposed_forehead  : {validated.exposed_forehead}")
         print(f"    - glasses           : {validated.glasses}")
         print(f"    - facial_hair       : {validated.facial_hair}")
+        print(f"    - eye_shape         : {validated.eye_shape}")
+        print(f"    - eyebrows          : {validated.eyebrows}")
         print(f"  [ルールベース変換]")
         print(f"    - physical_traits   : {phys_traits if phys_traits else '(なし)'}")
         print(f"    - negative_hair_bias: {neg_bias if neg_bias else '(なし)'}")

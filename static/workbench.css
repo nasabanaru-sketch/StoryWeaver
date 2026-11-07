@@ -320,7 +320,153 @@
 .face-preview {
   width: 100%;
   height: 100%;
+  object-fit: contain;
+  background: #050609;
+}
+
+.wb-face-source-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-sm);
+}
+
+.wb-current-face-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  font-family: 'JetBrains Mono', monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-autocrop-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-sub);
+  cursor: pointer;
+}
+
+.wb-camera-capture-box,
+.wb-captured-list-box {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wb-subbox-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.wb-camera-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.wb-camera-viewfinder {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  max-height: 280px;
+  background: #000;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-glass);
+  overflow: hidden;
+}
+
+.wb-camera-viewfinder.cropped-mode {
+  aspect-ratio: 1 / 1;
+  border-color: var(--accent-cyan);
+}
+
+#wb-camera-video {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
+  transform: scaleX(-1);
+}
+
+#wb-camera-crop-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #050609;
+}
+
+.wb-guide-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.wb-camera-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.wb-camera-actions .btn {
+  flex: 1;
+}
+
+.wb-captured-faces-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  gap: 6px;
+  max-height: 136px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.wb-captured-thumb-item {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  background: #050609;
+  transition: var(--transition);
+}
+
+.wb-captured-thumb-item:hover {
+  border-color: rgba(255, 255, 255, 0.45);
+  transform: translateY(-1px);
+}
+
+.wb-captured-thumb-item.selected {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.45);
+}
+
+.wb-captured-thumb-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.wb-captured-empty {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: center;
+  padding: 8px 0;
 }
 
 .dropzone-placeholder {
@@ -473,7 +619,250 @@
   color: var(--accent-cyan);
 }
 
-/* Audio Panel */
+/* Audio Panel & 3-Point Calibration */
+.wb-calib-details {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.wb-calib-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.wb-calib-summary::-webkit-details-marker {
+  display: none;
+}
+
+.wb-calib-title {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.wb-calib-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.wb-vc-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.wb-vc-badge.registered {
+  background: rgba(16, 185, 129, 0.18);
+  border-color: rgba(16, 185, 129, 0.45);
+  color: #34d399;
+}
+
+.wb-vc-badge.unregistered {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+}
+
+.wb-vc-badge.optional {
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.28);
+  color: #cbd5e1;
+}
+
+.wb-calib-body {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wb-calib-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.wb-calib-updated {
+  font-size: 10.5px;
+  color: var(--text-dim);
+}
+
+.wb-calib-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.wb-b-chip {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-sub);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.wb-b-chip-power {
+  background: rgba(249, 115, 22, 0.18);
+  color: #fdba74;
+  border: 1px solid rgba(249, 115, 22, 0.35);
+}
+
+.wb-b-chip-whisper {
+  background: rgba(168, 85, 247, 0.18);
+  color: #d8b4fe;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+}
+
+.wb-calib-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+@media (max-width: 1100px) {
+  .wb-calib-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.wb-vc-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.wb-vc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11.5px;
+  color: #fff;
+}
+
+.wb-vc-tag {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.wb-vc-tag.req {
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+}
+
+.wb-vc-tag.opt {
+  background: rgba(168, 85, 247, 0.2);
+  color: #c084fc;
+}
+
+.wb-vc-guide {
+  font-size: 10.5px;
+  color: #cbd5e1;
+  background: rgba(0, 0, 0, 0.28);
+  border-left: 2px solid rgba(56, 189, 248, 0.6);
+  padding: 4px 6px;
+  border-radius: 3px;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.wb-vc-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.wb-btn-calib-rec {
+  flex: 1;
+  justify-content: center;
+}
+
+.wb-btn-calib-rec.recording {
+  background: linear-gradient(135deg, #f97316, #ea580c) !important;
+  color: #fff !important;
+  border-color: #fb923c !important;
+}
+
+.wb-calib-file-label {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+
+.wb-calib-progress {
+  font-size: 11px;
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+/* Raw Features 16-Item Grid */
+.wb-raw-features-wrap {
+  border-top: 1px dashed rgba(255, 255, 255, 0.12);
+  padding-top: 6px;
+}
+
+.wb-raw-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-sub);
+  margin-bottom: 4px;
+}
+
+.wb-raw-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(125px, 1fr));
+  gap: 4px;
+}
+
+.wb-raw-item {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  padding: 4px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.wb-raw-k {
+  font-size: 9.5px;
+  color: var(--text-dim);
+}
+
+.wb-raw-v {
+  font-size: 11px;
+  font-weight: 700;
+  color: #f8fafc;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.wb-raw-v small {
+  font-size: 9.5px;
+  font-weight: 400;
+  color: var(--text-sub);
+}
+
 .audio-input-methods {
   display: flex;
   flex-direction: column;
@@ -710,7 +1099,7 @@
 
 .e12-item {
   display: grid;
-  grid-template-columns: 110px 1fr 50px;
+  grid-template-columns: 145px 1fr 50px;
   align-items: center;
   gap: 8px;
   font-size: 11px;
@@ -778,7 +1167,32 @@
 .bottom-controls {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 16px;
+}
+
+.wb-workflow-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+}
+
+.wb-workflow-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-cyan);
+  white-space: nowrap;
+}
+
+.wb-workflow-select {
+  width: auto;
+  min-width: 240px;
+  padding: 5px 10px;
+  font-size: 12px;
 }
 
 /* Toggle Switch */
@@ -880,10 +1294,32 @@
   gap: 4px;
 }
 
+.prompt-node-tag-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
 .prompt-node-tag {
   font-size: 10px;
   font-family: 'JetBrains Mono', monospace;
   color: var(--accent-cyan);
+}
+
+.wb-fd-disabled-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.prompt-col.fd-disabled {
+  opacity: 0.5;
+  border-color: rgba(255, 255, 255, 0.04);
 }
 
 .prompt-col-title {
@@ -1114,4 +1550,222 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   Qwen2-Audio Hybrid Analysis & Prompt Tuning Styles
+   ========================================================================== */
+
+/* Qwen2 Prompt Tuning Details Box */
+.wb-qwen-prompt-box {
+  background: rgba(139, 92, 246, 0.05);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+}
+
+.wb-qwen-prompt-box[open] {
+  background: rgba(139, 92, 246, 0.09);
+  border-color: rgba(139, 92, 246, 0.45);
+}
+
+.wb-qwen-prompt-box summary {
+  cursor: pointer;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #c4b5fd;
+  user-select: none;
+}
+
+.wb-qwen-prompt-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+/* Qwen2 Results Card */
+.wb-qwen-results-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.qwen-summary-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.qwen-nuance-tag-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qwen-label {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.qwen-nuance-badge {
+  font-size: 13px;
+  font-weight: 800;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(90deg, rgba(139, 92, 246, 0.3), rgba(236, 72, 153, 0.3));
+  border: 1px solid rgba(236, 72, 153, 0.6);
+  color: #fdf2f8;
+  box-shadow: 0 0 12px rgba(236, 72, 153, 0.25);
+}
+
+.qwen-metrics-chips {
+  display: flex;
+  gap: 8px;
+}
+
+/* AI Acting Director Comment */
+.qwen-comment-card {
+  background: rgba(13, 15, 23, 0.7);
+  border-left: 3px solid #a855f7;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+
+.qwen-comment-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.qwen-avatar-icon {
+  font-size: 16px;
+}
+
+.qwen-comment-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #c4b5fd;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.qwen-comment-body {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #f1f5f9;
+}
+
+/* Baseline Deltas Meter Grid */
+.qwen-deltas-card {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+
+.deltas-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-sub);
+  margin-bottom: 6px;
+}
+
+.deltas-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px 12px;
+}
+
+.delta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.delta-item-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10.5px;
+}
+
+.delta-name {
+  color: var(--text-dim);
+}
+
+.delta-val {
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+.delta-val.is-up {
+  color: #f43f5e;
+}
+
+.delta-val.is-down {
+  color: #3b82f6;
+}
+
+.delta-val.is-neutral {
+  color: #94a3b8;
+}
+
+.delta-meter-track {
+  position: relative;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.delta-meter-center {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.delta-meter-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+
+/* Unload VRAM Button next to Generate Button */
+#wb-btn-qwen-unload {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.18), rgba(99, 102, 241, 0.14));
+  border: 1px solid rgba(139, 92, 246, 0.45);
+  color: #e0e7ff;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: var(--transition);
+}
+
+#wb-btn-qwen-unload:hover {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.32), rgba(99, 102, 241, 0.28));
+  border-color: rgba(167, 139, 250, 0.8);
+  color: #ffffff;
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.35);
+  transform: translateY(-1px);
+}
+
+#wb-btn-qwen-unload:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
 }
