@@ -201,7 +201,7 @@ GPUメモリ（VRAM 16GB）の競合を防ぎ、安全に起動するために�
 
 | ファイル名 | 役割 | 編集方法 |
 | :--- | :--- | :--- |
-| `config.json` | サーバー基本設定（URL、タイムアウト、VRAM制限、`emotion_mode`、`WORKFLOW_PATH`） | スタッフ設定画面 または テキストエディタ |
+| `config.json` | サーバー基本設定（URL、タイムアウト［`OLLAMA_TIMEOUT_SEC: 30`, `OLLAMA_WARMUP_TIMEOUT_SEC: 180`］、VLM思考設定［`VLM_THINK: true`］、VRAM制限、`emotion_mode`、`WORKFLOW_PATH`） | スタッフ設定画面 または テキストエディタ |
 | `presets.json` | 展示シナリオ・世界観プリセット一覧 | スタッフ設定画面 または テキストエディタ |
 | `storyweaver_emotion_prototypes.json` | 15次元プロトタイプ感情辞書（`baseline`, `scales`, `feature_weights`, `model_config`［`alpha: 0.35`, `clip_z_range: [-3, 3]`］, 各感情の重心ベクトル `prototypes[e]["centroid_z"]`）。未キャリブレーション時のフォールバック基準およびスケール・重心ベクトルとして使用 | プロトタイプ作成ツール または テキストエディタ |
 | `qwen2_audio_hybrid.py` | `Qwen/Qwen2-Audio-7B-Instruct`（4bit NF4量子化・VRAM解放 `unload_model()` 対応）と `voice_emo_analyzer.py` の物理音響差分（`baseline_deltas`）を融合したハイブリッド感情・演技ニュアンス分析モジュール | Python モジュール |
@@ -237,3 +237,5 @@ GPUメモリ（VRAM 16GB）の競合を防ぎ、安全に起動するために�
 | **顔が認識されない（422エラー）** | ガイド枠から顔が外れている、手で隠れている | ガイドの楕円内に顔を正面に向けて収め、再度撮影してください。 |
 | **音声認識セリフが空になる** | マイクが無音、または入力デバイス不一致 | スタッフ設定でマイクデバイスが合っているか確認し、メーターが反応するかテストしてください。 |
 | **詳細12感情モードでスコアが極端** | ベースライン未登録、または周囲の環境雑音 | スタッフ設定から静かな環境で「棒読み基準値」を再録音・登録してください。 |
+| **顔認識 (VLM) がタイムアウトする（504 `OLLAMA_TIMEOUT`）** | Ollama アップデート直後の初回ロード遅延、`Qwen2-Audio` ロード中のメモリ帯域競合、または `thinking` モードの長時間推論 | `server.py` の `QWEN2_LOCK` 排他と 2 段階ロード（`OLLAMA_WARMUP_TIMEOUT_SEC: 180`）により自動解消されます。速度優先にしたい場合は `config.json` の `"VLM_THINK": false` へ変更してください（約4秒→約1秒に短縮）。 |
+| **Ollama の VRAM 表示が実際（約3.1GB）より少なく見える** | Ollama 0.40.17+ (`llamacpp` + `draft-mtp`) が `/api/ps` 上で `size_vram` を過小報告する仕様 | `qwen2_audio_hybrid.py` の `get_ollama_model_status()` にて自動的に安全側見積もり（`3,100 MB`）へ補正して表示・VRAM 閾値判定を行います。 |

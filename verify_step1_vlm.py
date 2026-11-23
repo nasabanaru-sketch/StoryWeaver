@@ -266,12 +266,26 @@ def rule_based_transform(extracted: FaceVlmExtraction) -> tuple[str, str, list[s
 # ---------------------------------------------------------------------------
 # Ollama 呼び出し
 # ---------------------------------------------------------------------------
+def _strip_markdown_json_fence(text: str) -> str:
+    """Markdown コードフェンス (```json ... ```) が含まれる場合に剥がす"""
+    s = (text or "").strip()
+    if s.startswith("```"):
+        lines = s.splitlines()
+        if lines and lines[0].lstrip().startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        s = "\n".join(lines).strip()
+    return s
+
+
 def call_ollama_vlm(
     image_path: Path,
     model: str,
     ollama_url: str = "http://localhost:11434/api/generate",
     timeout: int = 30,
     keep_alive: Union[int, str] = 0,
+    think: bool = True,
 ) -> dict:
     print(f"  [1/4] 画像エンコード中: {image_path.name}", flush=True)
     b64_img = encode_image_to_base64(image_path)
@@ -282,6 +296,7 @@ def call_ollama_vlm(
         "prompt": SYSTEM_PROMPT,
         "images": [b64_img],
         "format": schema,
+        "think": bool(think),
         "stream": False,
         "keep_alive": keep_alive,  # 0: 推論直後に解放 / "15m" 等: Step 3 音声分析まで VRAM 保持
         "options": {
@@ -290,7 +305,7 @@ def call_ollama_vlm(
     }
 
     print(
-        f"  [2/4] Ollama API にリクエスト送信中 (model={model}, timeout={timeout}s, keep_alive={keep_alive})...",
+        f"  [2/4] Ollama API にリクエスト送信中 (model={model}, think={bool(think)}, timeout={timeout}s, keep_alive={keep_alive})...",
         flush=True,
     )
     t0 = time.perf_counter()
@@ -312,17 +327,32 @@ def call_ollama_vlm(
     load_duration_ms = round(data.get("load_duration", 0) / 1e6, 1)
     eval_duration_ms = round(data.get("eval_duration", 0) / 1e6, 1)
     prompt_eval_duration_ms = round(data.get("prompt_eval_duration", 0) / 1e6, 1)
-    raw_response_text = data.get("response", "{}")
+    raw_response_text = (data.get("response") or "").strip()
+    thinking_text = data.get("thinking") or ""
+    done_reason = str(data.get("done_reason") or "")
+    cleaned_response_text = _strip_markdown_json_fence(raw_response_text)
 
     # Pydantic 検証
-    try:
-        parsed_dict = json.loads(raw_response_text)
-        validated = FaceVlmExtraction.model_validate(parsed_dict)
-        validation_error = None
-    except (json.JSONDecodeError, ValidationError) as e:
+    if not cleaned_response_text:
         validated = None
-        validation_error = str(e)
+        validation_error = (
+            f"Empty response from Ollama (done_reason={done_reason!r}, "
+            f"thinking_len={len(thinking_text)})"
+        )
         parsed_dict = {}
+    else:
+        try:
+            parsed_dict = json.loads(cleaned_response_text)
+            validated = FaceVlmExtraction.model_validate(parsed_dict)
+            validation_error = None
+        except (json.JSONDecodeError, ValidationError) as e:
+            validated = None
+            raw_preview = cleaned_response_text[:200].replace("\n", "\\n")
+            validation_error = (
+                f"{e} (done_reason={done_reason!r}, thinking_len={len(thinking_text)}, "
+                f"raw_preview={raw_preview!r})"
+            )
+            parsed_dict = {}
 
     return {
         "wall_time_ms": wall_time_ms,
@@ -331,6 +361,8 @@ def call_ollama_vlm(
         "prompt_eval_duration_ms": prompt_eval_duration_ms,
         "vram_used_mb": vram_used_mb,
         "raw_response": raw_response_text,
+        "thinking_len": len(thinking_text),
+        "done_reason": done_reason,
         "parsed": parsed_dict,
         "validated": validated,
         "validation_error": validation_error,
@@ -380,6 +412,7 @@ def main():
     parser.add_argument("--model", type=str, default="gemma4:e2b", help="Ollama モデル名")
     parser.add_argument("--ollama-url", type=str, default="http://localhost:11434/api/generate", help="Ollama API URL")
     parser.add_argument("--timeout", type=int, default=30, help="タイムアウト秒数")
+    parser.add_argument("--no-think", action="store_true", help="Ollama thinking モードを無効化する (高速化)")
     parser.add_argument("--csv", type=str, default="vlm_benchmark.csv", help="ベンチマーク出力先CSV")
 
     args = parser.parse_args()
@@ -428,6 +461,7 @@ def main():
                 model=args.model,
                 ollama_url=args.ollama_url,
                 timeout=args.timeout,
+                think=not args.no_think,
             )
         except Exception as e:
             print(f"  [FAIL] 呼び出しエラー: {e}")

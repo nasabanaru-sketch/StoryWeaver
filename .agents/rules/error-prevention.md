@@ -48,9 +48,15 @@ else:
 
 ### 2.2 HTTP リクエストのタイムアウト設定
 - `requests` や `httpx` を用いた全ての外部通信（Ollama, ComfyUI）において、`timeout=` 引数を必須とする。
+- Ollama（`gemma4:e2b` 等）への推論タイムアウト（`OLLAMA_TIMEOUT_SEC = 30`）と、コールドロード待機タイムアウト（`OLLAMA_WARMUP_TIMEOUT_SEC = 180`）を分離し、未ロード時は `ensure_ollama_loaded()`（空プロンプト `prompt: ""`）で事前ロードしてから 30 秒推論を実行すること。起動時ウォームアップでも `prompt: "ok"` や `keep_alive: 0` の競合を起こさないこと。
 ```python
 requests.post("http://localhost:11434/api/generate", json=payload, timeout=10.0)
 ```
+
+### 2.3 Ollama (Gemma 4 等) の Thinking 制御・排他・VRAM 報告補正
+- **Thinking モードの明示**: `gemma4:e2b` のようにデフォルトで `thinking: true` となるモデルを `/api/generate` で呼ぶ場合は、用途に応じて `"think": True/False` を明示設定し（設定値 `VLM_THINK` 等で制御）、思考暴走や解析遅延を防ぐこと。
+- **大規模モデルロードとの排他**: `Qwen2-Audio` のロード（CPU/RAM/PCIe 高負荷）と Ollama VLM 推論は `QWEN2_LOCK` で排他し、ホストメモリ帯域競合によるタイムアウトを防ぐこと。
+- **`/api/ps` の `size_vram` 補正**: Ollama 0.40.17+ (`llamacpp` + `draft-mtp`) 等で `/api/ps` の `size_vram` が過小報告（約 257MB 等）される場合は、`get_ollama_model_status()` 側の下限安全値補正（3,100 MB）を維持し、VRAM 閾値判定が実態から乖離しないようにすること。
 
 ---
 

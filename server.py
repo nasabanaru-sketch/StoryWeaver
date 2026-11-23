@@ -45,6 +45,7 @@ from verify_step1_sensevoice import (
 )
 from voice_emo_analyzer import get_voice_emo_analyzer
 from qwen2_audio_hybrid import (
+    ensure_ollama_loaded,
     get_ollama_model_status,
     get_qwen2_audio_analyzer,
     preload_ollama_model,
@@ -65,7 +66,8 @@ DEFAULT_CONFIG = {
     "OLLAMA_URL": "http://localhost:11434/api/generate",
     "OLLAMA_MODEL": "gemma4:e2b",
     "OLLAMA_TIMEOUT_SEC": 30,
-    "OLLAMA_WARMUP_TIMEOUT_SEC": 120,
+    "OLLAMA_WARMUP_TIMEOUT_SEC": 180,
+    "VLM_THINK": True,
     "COMFYUI_URL": "http://localhost:8188",
     "COMFYUI_TIMEOUT_SEC": 500,
     "COMFYUI_INPUT_DIR": r"C:\pinokio\api\comfy.git\app\input",
@@ -245,14 +247,34 @@ def sweep_stale_files() -> None:
 def _ollama_warmup() -> None:
     try:
         t0 = time.perf_counter()
-        r = requests.post(
-            CFG["OLLAMA_URL"],
-            json={"model": CFG["OLLAMA_MODEL"], "prompt": "ok", "stream": False, "keep_alive": 0},
-            timeout=CFG["OLLAMA_WARMUP_TIMEOUT_SEC"],
+        warmup_timeout = int(CFG.get("OLLAMA_WARMUP_TIMEOUT_SEC", DEFAULT_CONFIG["OLLAMA_WARMUP_TIMEOUT_SEC"]))
+        res = ensure_ollama_loaded(
+            ollama_url=CFG["OLLAMA_URL"],
+            ollama_model=CFG["OLLAMA_MODEL"],
+            keep_alive="5m",
+            timeout_sec=warmup_timeout,
         )
-        log.info("Ollama ウォームアップ完了 HTTP %s (%.1fs)", r.status_code, time.perf_counter() - t0)
+        if res.get("ok"):
+            log.info(
+                "Ollama ウォームアップ完了 (already_loaded=%s, %.1fs, VRAM=%.1fMB)",
+                res.get("already_loaded", False),
+                time.perf_counter() - t0,
+                float(res.get("vram_used_mb", 0.0)),
+            )
+        else:
+            log.warning("Ollama ウォームアップ失敗（継続）: %s", res.get("error", "unknown error"))
     except Exception as e:
         log.warning("Ollama ウォームアップ失敗（継続）: %s", e)
+
+
+async def _ollama_warmup_async() -> None:
+    """Qwen2_LOCK で排他しつつ Ollama モデルを事前ロードする"""
+    try:
+        async with QWEN2_LOCK:
+            await asyncio.to_thread(_ollama_warmup)
+    except asyncio.CancelledError:
+        log.debug("Ollama ウォームアップタスクがキャンセルされました")
+        raise
 
 
 def _load_sensevoice():
@@ -291,12 +313,13 @@ async def lifespan(app: FastAPI):
     await asyncio.to_thread(voice_analyzer.warmup)
     log.info("VoiceEmoAnalyzer ウォームアップ完了")
 
-    warm = asyncio.create_task(asyncio.to_thread(_ollama_warmup))
+    warm = asyncio.create_task(_ollama_warmup_async())
     reaper = asyncio.create_task(session_reaper())
     BG_TASKS.update({warm, reaper})
     try:
         yield
     finally:
+        warm.cancel()
         reaper.cancel()
         unload_qwen2_audio_if_loaded()
         unload_ollama_if_loaded()
@@ -547,6 +570,25 @@ def _analyze_blocking(sess: Session) -> None:
     comfy_free_and_wait_vram()
     # Step 1 でスタンバイした Qwen2-Audio はアンロードせず維持し、
     # Gemma 4 e2b も Step 3 の音声感情分析が終わるまで VRAM に保持する (keep_alive="15m")
+    warmup_timeout = int(
+        CFG.get("OLLAMA_WARMUP_TIMEOUT_SEC", DEFAULT_CONFIG["OLLAMA_WARMUP_TIMEOUT_SEC"])
+    )
+    pre = ensure_ollama_loaded(
+        ollama_url=CFG["OLLAMA_URL"],
+        ollama_model=CFG["OLLAMA_MODEL"],
+        keep_alive="15m",
+        timeout_sec=warmup_timeout,
+    )
+    if not pre.get("ok", False):
+        err = str(pre.get("error") or "preload failed")
+        err_low = err.lower()
+        if "timed out" in err_low or "timeout" in err_low:
+            raise HTTPException(504, f"OLLAMA_TIMEOUT: preload failed ({err})")
+        if "connection" in err_low or "refused" in err_low or "max retries" in err_low:
+            raise HTTPException(503, f"OLLAMA_UNAVAILABLE: {err}")
+        raise HTTPException(502, f"OLLAMA_ERROR: {err}")
+
+    vlm_think = bool(CFG.get("VLM_THINK", DEFAULT_CONFIG["VLM_THINK"]))
     try:
         res = call_ollama_vlm(
             sess.image_path,
@@ -554,6 +596,7 @@ def _analyze_blocking(sess: Session) -> None:
             ollama_url=CFG["OLLAMA_URL"],
             timeout=CFG["OLLAMA_TIMEOUT_SEC"],
             keep_alive="15m",
+            think=vlm_think,
         )
     except requests.Timeout:
         raise HTTPException(504, "OLLAMA_TIMEOUT")
@@ -583,6 +626,8 @@ def _analyze_blocking(sess: Session) -> None:
             "load_duration_ms": res["load_duration_ms"],
             "eval_duration_ms": res["eval_duration_ms"],
             "vram_used_mb": res["vram_used_mb"],
+            "think": vlm_think,
+            "thinking_len": res.get("thinking_len", 0),
             "expression_warnings": warnings,
         },
     }
@@ -610,7 +655,8 @@ async def analyze_face(face_image: UploadFile = File(...), session_id: Optional[
     SESSIONS[sid] = sess
     try:
         img_path.write_bytes(cropped_data)
-        await asyncio.to_thread(_analyze_blocking, sess)
+        async with QWEN2_LOCK:
+            await asyncio.to_thread(_analyze_blocking, sess)
         sess.result["cropped_image_base64"] = base64.b64encode(cropped_data).decode("ascii")
         sess.status = "ready"
         return sess.result
@@ -786,6 +832,12 @@ async def update_config(payload: dict = Body(...)):
                 400,
                 f"INVALID_EMOTION_MODE: emotion_mode は {ALLOWED_EMOTION_MODES} のいずれかを指定してください (指定値: {em_val})",
             )
+    if "VLM_THINK" in payload:
+        if not isinstance(payload["VLM_THINK"], bool):
+            raise HTTPException(
+                400,
+                "INVALID_VLM_THINK: VLM_THINK は真偽値 (true/false) を指定してください",
+            )
     for k, v in payload.items():
         if k in CFG:
             if isinstance(CFG[k], float) and isinstance(v, (int, float)):
@@ -867,7 +919,7 @@ async def standby_models_endpoint():
             ollama_url=CFG.get("OLLAMA_URL", DEFAULT_CONFIG["OLLAMA_URL"]),
             ollama_model=CFG.get("OLLAMA_MODEL", DEFAULT_CONFIG["OLLAMA_MODEL"]),
             keep_alive="15m",
-            timeout_sec=int(CFG.get("OLLAMA_WARMUP_TIMEOUT_SEC", 120)),
+            timeout_sec=int(CFG.get("OLLAMA_WARMUP_TIMEOUT_SEC", DEFAULT_CONFIG["OLLAMA_WARMUP_TIMEOUT_SEC"])),
         )
         # 3) Qwen2-Audio (4bit) を VRAM にロード
         qwen_analyzer.ensure_loaded()

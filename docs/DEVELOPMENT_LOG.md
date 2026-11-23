@@ -596,14 +596,24 @@ Phase 2 の基準 4（時間短縮）を継続課題として残したまま、�
     * `04_cool.wav` (ΔPitch -6.86st, ΔRMS -4.7dB): `serene: 90.0`, `confident: 70.0`, `burning: 50.0` ➔ **第1位 `serene`（90点）**（burning は 50点に完全抑制）
   * これにより、声のトーンやピッチ変化に応じた表情分岐が正常に機能することを確認。
 
+---
 
-
-
-
-
-
-
-
-
-
-
+### 【第30期】Ollama 0.40.17 アップデート起因の VLM 画像認識タイムアウト障害の原因特定・恒久対策（2026-11-23）
+* **発生事象**:
+  * Ollama が `0.40.15` → `0.40.17` へアップデートされた後、サーバー起動時ウォームアップ（120s タイムアウト → HTTP 500）および Step 1 スタンバイ（`Qwen2-Audio` ロード）直後の顔認識 `POST /api/analyze_face`（30.07s タイムアウト → `504 OLLAMA_TIMEOUT`）が失敗する事象が発生。
+* **ログ調査・実機再現による根本原因の特定**:
+  1. **`gemma4:e2b` のランナー変更と Thinking デフォルト ON**: 0.40.17 では `llama-server.exe` (`llamacpp`, `--load-mode none`, `--spec-type draft-mtp`) で起動し、`thinking (default: true)` のまま `verify_step1_vlm.py` から `"think"` 未指定で呼ばれていたため毎回 1,300〜2,600 文字の思考生成が走り推論時間が約 4〜5 倍増大。またアップデート直後の初回ロードは `106.73s` を要した。
+  2. **ホスト RAM (`CUDA_Host`) 帯域競合と排他制御欠如**: 0.40.17 の `gemma4:e2b` は `CUDA_Host` にも `2,152.50 MiB` を配置するため、ロックなしで実行された `POST /api/analyze_face` が `POST /api/models/standby` の `Qwen2-Audio` ロード（約 45〜60s）と CPU/RAM/PCIe で正面衝突し、プロンプト処理が `3.87 tokens/sec` まで低下して 30s タイムアウトに至った。
+  3. **起動時ウォームアップの誤設計・コールドロード混在・`/api/ps` 過小報告**: 起動時 `_ollama_warmup()` の `prompt: "ok"` / `keep_alive: 0` が単一スロットで競合していた点、コールドロードと 30s 推論枠が未分離だった点、さらに `llamacpp` + `draft-mtp` 環境で `/api/ps` が実 VRAM 約 `3,077 MB` を `256.9 MB` と過小報告する点を確認。
+* **全 10 枚テスト画像（`test_assets/faces/*.jpg`）比較評価と設定方針の決定**:
+  * ロード済み条件で `think=True`（現行）と `think=False` を比較し、スキーマ適合率は両方 **10 / 10 (100%)**、速度は `think=True` 平均 3.94s/枚 vs `think=False` 平均 0.88s/枚。
+  * `think=True` は `koji-bose.jpg`（`very short hair` → `buzz cut` + 超短髪ネガ）や `michie.jpg`（薄前髪 `has_bangs=True`）の境界判定に強い一方、`think=False` は `tomi.jpg`（性別 `1girl`）や `koji-women-.jpg`（`long hair`）の直感判定に強いことを確認。
+  * ユーザー判断により **案B（`VLM_THINK: true` デフォルト、速度・直感優先時は `config.json` で `false` に切替可能）** を採択。
+* **実装した恒久対策**:
+  1. `verify_step1_vlm.py`: `call_ollama_vlm()` に `think: bool = True` 引数と `--no-think` CLI オプションを追加し、コードフェンス除去・空応答エラー詳細化を実装。
+  2. `qwen2_audio_hybrid.py`: `ensure_ollama_loaded()` 追加、背景プリロード待機の `OLLAMA_WARMUP_TIMEOUT_SEC` (180s) 対応、`get_ollama_model_status()` への `OLLAMA_GEMMA4_MIN_VRAM_MB = 3100.0` 過小報告補正を追加。
+  3. `server.py` / `config.json`: `VLM_THINK: true`（`PUT /api/config` 真偽値検証付き）と `OLLAMA_WARMUP_TIMEOUT_SEC: 180` を追加。`_ollama_warmup_async()`（`QWEN2_LOCK` + `ensure_ollama_loaded(..., keep_alive="5m")`）へ刷新し、`POST /api/analyze_face` を `QWEN2_LOCK` 配下で 2 段階ロード（180s ロード枠 → 30s 推論枠）化。
+  4. ポストモーテム（`docs/postmortems/2026-11-23_ollama_upgrade_vlm_timeout.md`）、再発防止ルール（`.agents/rules/error-prevention.md` §2.2-2.3）、運用マニュアル（`docs/OPERATION_MANUAL.md` §5, §7）を更新。
+* **実機検証結果（2026-11-23）**:
+  * `py_compile` 全ファイル PASS、VLM CLI（`koji-bose.jpg`, `michie.jpg`, `test_noface.jpg`）全 PASS。
+  * 実機 Ollama + 実機 Qwen2-Audio による競合再現テスト（`standby` 開始 5 秒後に並列 `analyze_face` 送信）にて、両 API とも HTTP 200 完了（`standby` 53.36s、`analyze_face` 待機込み 53.24s / VLM 実推論 4.862s）、ハイブリッド音声分析 HTTP 200（3.69s）、ピーク VRAM **`10,921.9 MB`（<= 14.5 GB）**・全解放確認をすべて PASS。

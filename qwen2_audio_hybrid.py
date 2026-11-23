@@ -41,6 +41,9 @@ DEFAULT_MODEL_ID = "Qwen/Qwen2-Audio-7B-Instruct"
 DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
 DEFAULT_OLLAMA_MODEL = "gemma4:e2b"
 DEFAULT_OLLAMA_TIMEOUT_SEC = 30
+DEFAULT_OLLAMA_WARMUP_TIMEOUT_SEC = 180
+# Ollama 0.40.17 (llamacpp + draft-mtp) で /api/ps の size_vram が約 257MB に過小報告されるための下限安全値
+OLLAMA_GEMMA4_MIN_VRAM_MB = 3100.0
 
 ALL_EMOTION_KEYS: Tuple[str, ...] = (*PRIMARY_EMOTION_KEYS, *MODIFIER_EMOTION_KEYS)
 
@@ -158,6 +161,20 @@ def _load_ollama_settings() -> Tuple[str, str, int]:
     return url, model, timeout_sec
 
 
+def _load_ollama_warmup_timeout_sec(default: int = DEFAULT_OLLAMA_WARMUP_TIMEOUT_SEC) -> int:
+    """config.json から Ollama コールドロード待機タイムアウト秒を取得する"""
+    cfg_path = Path(__file__).resolve().parent / "config.json"
+    try:
+        if cfg_path.is_file():
+            data = json.loads(cfg_path.read_text(encoding="utf-8"))
+            val = data.get("OLLAMA_WARMUP_TIMEOUT_SEC")
+            if val is not None:
+                return max(30, int(val))
+    except Exception:
+        pass
+    return default
+
+
 def _ollama_ps_url(ollama_generate_url: str) -> str:
     """Ollama の /api/generate URL から /api/ps URL を導出する"""
     base = ollama_generate_url.rstrip("/")
@@ -184,16 +201,44 @@ def get_ollama_model_status(
                 m_name = str(m.get("name") or m.get("model") or "").strip()
                 if m_name == target_model or m_name.split(":")[0] == target_model.split(":")[0]:
                     size_vram = float(m.get("size_vram") or m.get("size") or 0.0)
-                    vram_mb = round(size_vram / (1024.0 * 1024.0), 1)
+                    raw_vram_mb = round(size_vram / (1024.0 * 1024.0), 1)
+                    runner = str(m.get("runner") or "").strip().lower()
+                    details = m.get("details") if isinstance(m.get("details"), dict) else {}
+                    family = str(details.get("family") or "").strip().lower()
+                    # Ollama 0.40.17 の llamacpp + draft-mtp 環境では /api/ps が size_vram を約 257MB と過小報告するため補正
+                    if raw_vram_mb < 1024.0 and (
+                        "gemma4" in m_name.lower() or family == "gemma4" or runner == "llamacpp"
+                    ):
+                        vram_mb = OLLAMA_GEMMA4_MIN_VRAM_MB
+                        vram_estimated = True
+                    else:
+                        vram_mb = raw_vram_mb
+                        vram_estimated = False
                     return {
                         "is_loaded": True,
                         "model": m_name,
                         "vram_used_mb": vram_mb,
+                        "raw_vram_used_mb": raw_vram_mb,
+                        "vram_estimated": vram_estimated,
+                        "runner": runner,
                     }
-        return {"is_loaded": False, "model": target_model, "vram_used_mb": 0.0}
+        return {
+            "is_loaded": False,
+            "model": target_model,
+            "vram_used_mb": 0.0,
+            "raw_vram_used_mb": 0.0,
+            "vram_estimated": False,
+        }
     except Exception as e:
         log.debug("get_ollama_model_status 失敗: %s", e)
-        return {"is_loaded": False, "model": target_model, "vram_used_mb": 0.0, "error": str(e)}
+        return {
+            "is_loaded": False,
+            "model": target_model,
+            "vram_used_mb": 0.0,
+            "raw_vram_used_mb": 0.0,
+            "vram_estimated": False,
+            "error": str(e),
+        }
 
 
 def preload_ollama_model(
@@ -244,6 +289,40 @@ def preload_ollama_model(
             "error": str(e),
             "elapsed_sec": round(time.time() - t0, 2),
         }
+
+
+def ensure_ollama_loaded(
+    ollama_url: Optional[str] = None,
+    ollama_model: Optional[str] = None,
+    keep_alive: Union[int, str] = "15m",
+    timeout_sec: Optional[int] = None,
+) -> Dict[str, Any]:
+    """Ollama モデルが未ロードの場合のみ空プロンプトでロードする（ロード済みなら即座に完了）"""
+    cfg_url, cfg_model, _ = _load_ollama_settings()
+    target_url = ollama_url or cfg_url
+    target_model = ollama_model or cfg_model
+    st = get_ollama_model_status(target_url, target_model, timeout_sec=3)
+    if st.get("is_loaded"):
+        return {
+            "ok": True,
+            "already_loaded": True,
+            "model": target_model,
+            "keep_alive": keep_alive,
+            "elapsed_sec": 0.0,
+            "is_loaded": True,
+            "vram_used_mb": st.get("vram_used_mb", 0.0),
+        }
+    effective_timeout = (
+        int(timeout_sec) if timeout_sec is not None else _load_ollama_warmup_timeout_sec()
+    )
+    res = preload_ollama_model(
+        ollama_url=target_url,
+        ollama_model=target_model,
+        keep_alive=keep_alive,
+        timeout_sec=effective_timeout,
+    )
+    res["already_loaded"] = False
+    return res
 
 
 def unload_ollama_model(
@@ -522,19 +601,21 @@ class Qwen2AudioHybridAnalyzer:
         )
 
     @staticmethod
-    def _warmup_ollama_bg(ollama_url: str, ollama_model: str, timeout_sec: int = 30) -> None:
+    def _warmup_ollama_bg(
+        ollama_url: str,
+        ollama_model: str,
+        timeout_sec: int = DEFAULT_OLLAMA_WARMUP_TIMEOUT_SEC,
+    ) -> None:
         """Qwen2-Audio (Step 1) 推論の裏で、Gemma 4 e2b が未ロードの場合のみ VRAM にプリロードする"""
         try:
-            st = get_ollama_model_status(ollama_url, ollama_model, timeout_sec=3)
-            if st.get("is_loaded"):
-                log.debug("Ollama (%s) は既に VRAM 上に常駐済みのためプリロードをスキップします", ollama_model)
-                return
-            preload_ollama_model(
+            res = ensure_ollama_loaded(
                 ollama_url=ollama_url,
                 ollama_model=ollama_model,
                 keep_alive="15m",
                 timeout_sec=timeout_sec,
             )
+            if res.get("already_loaded"):
+                log.debug("Ollama (%s) は既に VRAM 上に常駐済みのためプリロードをスキップします", ollama_model)
         except Exception as e:
             log.debug("Ollama バックグラウンドプリロード通知 (無視可能): %s", e)
 
@@ -690,6 +771,7 @@ class Qwen2AudioHybridAnalyzer:
         t0 = time.time()
         analyzer: VoiceEmoAnalyzer = get_voice_emo_analyzer()
         ollama_url, ollama_model, ollama_timeout = _load_ollama_settings()
+        ollama_warmup_timeout = _load_ollama_warmup_timeout_sec()
 
         # 1. 音声読み込みと librosa 物理特徴・7指標・フォールバック用プロトタイプ感情・ベースライン差分の算出
         audio, sr = analyzer._read_audio(wav_input)
@@ -757,7 +839,7 @@ class Qwen2AudioHybridAnalyzer:
 
         # 4. Step 1 (Qwen2-Audio) と並行して Ollama (gemma4:e2b) をバックグラウンドでプリロード
         warmup_future = self._bg_executor.submit(
-            self._warmup_ollama_bg, ollama_url, ollama_model, ollama_timeout
+            self._warmup_ollama_bg, ollama_url, ollama_model, ollama_warmup_timeout
         )
 
         step1_out = ""
@@ -772,7 +854,7 @@ class Qwen2AudioHybridAnalyzer:
             step1_out = "Audio perception unavailable (relying on physical voice analysis)."
 
         try:
-            warmup_future.result(timeout=ollama_timeout)
+            warmup_future.result(timeout=ollama_warmup_timeout)
         except Exception:
             pass
 
